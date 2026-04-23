@@ -73,11 +73,12 @@ impl ClapArg {
     /// Sanitizes the given attribute by removing any sub-attributes that are not relevant for
     /// optional argument.
     pub fn sanitize(attr: Attribute) -> Attribute {
-        const DENIED_ARGS: [&str; 16] = [
+        const DENIED_ARGS: [&str; 17] = [
             "default_value",
             "default_values",
             "default_value_if",
             "default_value_ifs",
+            "default_value_t",
             "required",
             "required_if_eq",
             "required_if_eq_any",

@@ -19,6 +19,8 @@ struct Cli {
     token: Option<String>,
     #[arg(long)]
     username: Option<String>,
+    #[arg(long, default_value_t = 42u16)]
+    age: u16,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
