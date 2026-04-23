@@ -1,55 +1,60 @@
 # clap-config-fallback
 
-Add config file fallback to clap **without losing clap parsing, validation, or error handling**.
+Add configuration-file fallback to clap **without losing clap parsing, validation, or error handling**.
 
 ---
 
 ## Why?
 
-`clap` is excellent for parsing CLI arguments and producing high-quality error messages.
+`clap` is excellent at parsing CLI arguments and producing high-quality diagnostics.
 
-However, it does not natively support loading values from a configuration file as a fallback.
+What it does not do out of the box is *merge a config file with CLI arguments while still enforcing  
+the same clap contract*.
 
-Existing solutions usually:
-- reimplement parsing logic and lose clap’s behavior
-- require duplicating structs (one for CLI, one for config)
-- force manual validation after parsing
+Common alternatives often:
+- reimplement parsing and drift from clap behavior,
+- duplicate structs (one for CLI, one for config), or
+- validate after parsing in a separate pass.
 
-This crate takes a different approach:
-**clap remains the single source of truth**
+`clap-config-fallback` keeps **clap as the single source of truth**.
 
 ---
 
 ## How it works
 
-The `ConfigParser` derive macro:
+`#[derive(ConfigParser)]` generates an intermediate optional `Opts` struct and runs a two-phase parse:
 
-1. Generates an intermediate `Opts` struct where all fields are optional
-2. Parses CLI arguments into this struct
-3. Loads a configuration file (if provided)
-4. Merges CLI + config (CLI has priority)
-5. Reconstructs CLI arguments
-6. Calls clap again for final parsing
+1. Parse CLI arguments into `Opts`.
+2. Resolve a config file path (if one is defined).
+3. Load and deserialize config into a generated `Config` struct.
+4. Merge values with precedence **CLI > config**.
+5. Reconstruct synthetic CLI args from merged `Opts`.
+6. Run your original clap parser for final parsing + validation.
 
-This ensures:
-- full clap validation
-- consistent error messages
-- no duplicated logic
-- identical CLI behavior
+Because the final pass is still clap, you keep clap’s errors and validation behavior.
+
+## Precedence and edge cases
+
+- **CLI always wins** over config for the same field.
+- Config fallback only runs when a `#[config(path)]` field is present and resolves to `Some(path)`.
+- If the path field has a clap `default_value`, that default also enables fallback.
+- If no path is available, parsing behaves like normal clap parsing.
+- A non-existent file is reported as a clap `Io` error.
+- Unknown/unsupported format (or feature-disabled format) is reported as a clap `InvalidValue` error.
 
 ## Requirements
-Using `ConfigParser` introduces some requirements :
-- Fields must:
-  - implement `Serialize` / `Deserialize`
-  - be convertible to CLI arguments (`ToString`-like behavior)
-- Nested structs must also derive `ConfigParser`
-- Only named structs are supported
+
+Using `ConfigParser` has a few constraints:
+- The target type must be a **named struct**.
+- Fields that participate in fallback must be serializable/deserializable.
+- Field values must be representable as CLI argument values (`to_string()` output is used).
+- Nested flattened structs must also derive `ConfigParser`.
 
 ## Known limitations
 
-- `#[command(subcommand)]` are not supported yet
-- Advanced `clap` features may not be fully covered
-- Only file-based configuration is supported
+- `#[command(subcommand)]` is not supported yet.
+- Some advanced clap attribute combinations may not be fully covered.
+- Only file-based configuration is currently supported.
 
 ---
 
@@ -79,36 +84,36 @@ fn main() {
     let cli = Cli::parse_with_config();
     println!("{cli:#?}");
 }
-
 ```
 
 ## `ConfigParser` attributes
+
 ### `#[config(path)]`
 
-Marks the field containing the configuration file path.
+Marks the field that stores the configuration file path.
 
-- optional (you can omit it entirely)
-- must be:
+- Optional (you may omit it entirely).
+- Must be one of:
   - `String`
   - `Option<String>`
 
-If no `path` field is present:
-**no config fallback is applied**
+If no `path` field exists, config fallback is disabled.
 
-### `#[config(format(...))]`
+### `#[config(format = "...")]`
 
-Defines how the config file should be parsed.
+Forces how the config file is parsed for the `#[config(path)]` field.
 
+Supported values:
 - `toml`
 - `yaml`
 - `json`
-- `auto`
+- `auto` (default; detect by extension)
 
 ### `#[config(skip)]`
 
-Exclude a field from configuration fallback.
+Excludes a field from config fallback while keeping normal CLI parsing.
 
-``` rust
+```rust
 #[arg(long)]
 #[config(skip)]
 port: u16,
@@ -116,9 +121,9 @@ port: u16,
 
 ### `#[config(skip_all)]`
 
-Disable configuration fallback for all fields in the struct.
+Disables config fallback for all fields in the struct.
 
-``` rust
+```rust
 #[config(skip_all)]
-struct Cli { ... }
+struct Cli { /* ... */ }
 ```
