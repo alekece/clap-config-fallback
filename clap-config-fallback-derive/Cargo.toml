@@ -1,6 +1,6 @@
 [package]
 name = "clap-config-fallback-derive"
-version = "0.1.0"
+version = "0.1.1"
 description = "Macro implementation of #[derive(ConfigParser)]"
 keywords = ["clap", "config", "cli", "derive"]
 edition.workspace = true
