@@ -1,0 +1,17 @@
+debug = false
+profile = "dev"
+threads = 4
+
+[server]
+url = "http://localhost:8080"
+
+[server.tls]
+enabled = true
+cert_path = "./certs/dev.pem"
+
+[database]
+url = "postgres://postgres:postgres@localhost:5432/toml"
+
+[database.pool]
+max_connections = 16
+timeout_seconds = 10

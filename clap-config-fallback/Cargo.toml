@@ -1,0 +1,23 @@
+[package]
+name = "clap-config-fallback"
+version = "0.1.0"
+description = "Add config file fallback to clap while preserving parsing, validation and error handling"
+keywords = ["clap", "config", "cli"]
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+categories.workspace = true
+license-file.workspace = true
+
+[features]
+default = ["toml", "json", "yaml", "derive"]
+derive = ["clap-config-fallback-derive"]
+toml = ["figment/toml"]
+json = ["figment/json"]
+yaml = ["figment/yaml"]
+
+[dependencies]
+clap = { version = "4.6.0", features = ["derive", "env"] }
+clap-config-fallback-derive = { workspace = true, optional = true }
+figment = { version = "0.10.19" }
+serde = { version = "1.0.228", features = ["derive"] }

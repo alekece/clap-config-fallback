@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "clap-config-fallback",
+    "clap-config-fallback-derive"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.94.1"
+authors = ["Alexis Le Provost <alexis.leprovost@outlook.com>"]
+categories = ["command-line-interface", "config"]
+license-file = "LICENSE"
+
+[workspace.dependencies]
+clap-config-fallback-derive = { path = "clap-config-fallback-derive" }
