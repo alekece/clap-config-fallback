@@ -30,9 +30,27 @@ jobs:
       - name: Run cargo clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  deny:
+    name: Deny
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Run cargo deny
+        run: cargo deny check
+
   build:
     name: Build
-    needs: [lint]
+    needs: [lint, deny]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
