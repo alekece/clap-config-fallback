@@ -102,6 +102,7 @@ pub trait ConfigParser: Sized + Parser {
         T: Into<OsString> + Clone,
     {
         let command = <Self::Opts as CommandFactory>::command();
+        let command_name = command.get_name().to_owned();
         let args = command.try_get_matches_from(itr)?;
         let opts = Self::Opts::from_args(&args);
 
@@ -145,6 +146,6 @@ pub trait ConfigParser: Sized + Parser {
             .extract::<Self::Opts>()
             .map_err(|e| Self::command().error(ErrorKind::InvalidValue, e.to_string()))?;
 
-        Self::try_parse_from(iter::once(env!("CARGO_PKG_NAME").to_string()).chain(cli.into_args()))
+        Self::try_parse_from(iter::once(command_name).chain(cli.into_args()))
     }
 }
