@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use clap::{error::ErrorKind, Parser};
+use clap::{Parser, error::ErrorKind};
 use clap_config_fallback::ConfigParser;
 use eyre::Result;
 use tempfile::NamedTempFile;
