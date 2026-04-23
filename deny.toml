@@ -1,0 +1,13 @@
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn"
+
+[licenses]
+allow = [
+      "Unicode-3.0",
+      "Apache-2.0",
+      "MIT",
+]
+
+[bans]
+multiple-versions = "warn"
