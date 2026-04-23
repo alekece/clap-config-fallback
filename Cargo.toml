@@ -7,7 +7,7 @@ edition = "2024"
 rust-version = "1.94.1"
 authors = ["Alexis Le Provost <alexis.leprovost@outlook.com>"]
 categories = ["command-line-interface", "config"]
-license-file = "LICENSE"
+license = "MIT or Apache-2.0"
 
 [package]
 name = "clap-config-fallback"
@@ -18,7 +18,7 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 categories.workspace = true
-license-file.workspace = true
+license.workspace = true
 
 [features]
 default = ["toml", "json", "yaml", "derive"]
