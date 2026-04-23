@@ -1,3 +1,12 @@
+//! `clap-config-fallback` extends clap with configuration-file fallback while preserving clap as
+//! the final parser/validator.
+//!
+//! Typical flow:
+//! 1. Parse CLI args into an optional intermediate struct.
+//! 2. Load config values from `#[config(path)]` (if provided).
+//! 3. Merge with precedence `CLI > config`.
+//! 4. Re-run clap on reconstructed arguments for final validation.
+
 use std::{ffi::OsString, iter, path::PathBuf};
 
 use clap::{ArgMatches, CommandFactory, Error, Parser, error::ErrorKind};
@@ -6,32 +15,39 @@ use serde::{Serialize, de::DeserializeOwned};
 
 pub use clap_config_fallback_derive::ConfigParser;
 
-/// Represents the supported configuration file formats.
+/// Supported configuration file formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigFormat {
     Toml,
     Yaml,
     Json,
 }
 
-/// Trait for converting parsed options into command-line arguments for the main parser.
+/// Converts an intermediate options struct into synthetic CLI args.
+///
+/// These args are fed back into clap for the final parse/validation pass.
 pub trait IntoArgs {
     fn into_args(self) -> impl Iterator<Item = String>;
 }
 
-/// Trait for constructing an options struct from parsed command-line arguments, used by the
-/// `ConfigParser` to create an instance of the options struct from the CLI arguments before
-/// loading the configuration file.
+/// Builds an intermediate options struct from clap `ArgMatches`.
+///
+/// This pass captures values explicitly provided on the CLI before config fallback is applied.
 pub trait FromArgs: Sized {
     fn from_args(args: &ArgMatches) -> Self;
 }
 
-/// Trait for types that can specify a configuration file path and format, used by the `ConfigParser`
-/// to determine how to load configuration values from a file and merge them with CLI arguments.
+/// Provides configuration path and format discovery for fallback loading.
 pub trait ConfigSource {
-    /// Returns the path to the configuration file, if specified.
+    /// Returns the config file path when fallback should be attempted.
     fn config_path(&self) -> Option<&str>;
 
-    /// Returns the format of the configuration file, or `ConfigFormat::Unsupported`.
+    /// Returns a config format if it can be resolved.
+    ///
+    /// The default implementation infers from extension:
+    /// - `.toml` (`toml` feature)
+    /// - `.yaml` / `.yml` (`yaml` feature)
+    /// - `.json` (`json` feature)
     fn config_format(&self) -> Option<ConfigFormat> {
         self.config_path().and_then(|path| {
             if cfg!(feature = "toml") && path.ends_with(".toml") {
@@ -47,19 +63,27 @@ pub trait ConfigSource {
         })
     }
 }
-
+/// Parse a clap struct with optional configuration-file fallback.
+///
+/// Deriving `ConfigParser` generates an internal optional `Opts` type and a config-deserialization
+/// type, then wires them into this trait.
 pub trait ConfigParser: Sized + Parser {
+    /// Intermediate optional representation used for CLI/config merge.
     type Opts: Parser + Serialize + DeserializeOwned + IntoArgs + FromArgs + ConfigSource;
+    /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
 
+    /// Equivalent to [`Parser::parse`], but with config fallback.
     fn parse_with_config() -> Self {
         Self::parse_with_config_from(std::env::args_os())
     }
 
+    /// Equivalent to [`Parser::try_parse`], but with config fallback.
     fn try_parse_with_config() -> Result<Self, Error> {
         Self::try_parse_with_config_from(std::env::args_os())
     }
 
+    /// Equivalent to [`Parser::parse_from`], but with config fallback.
     fn parse_with_config_from<I, T>(itr: I) -> Self
     where
         I: IntoIterator<Item = T>,
@@ -68,6 +92,10 @@ pub trait ConfigParser: Sized + Parser {
         Self::try_parse_with_config_from(itr).unwrap_or_else(|e| e.exit())
     }
 
+    /// Performs parsing with config fallback and returns clap errors instead of exiting.
+    ///
+    /// Merge precedence is **CLI > config**. If no config path is available, behavior matches a
+    /// normal clap parse.
     fn try_parse_with_config_from<I, T>(itr: I) -> Result<Self, Error>
     where
         I: IntoIterator<Item = T>,
