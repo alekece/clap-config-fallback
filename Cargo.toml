@@ -32,3 +32,7 @@ clap = { version = "4.6.0", features = ["derive", "env"] }
 clap-config-fallback-derive = { path = "clap-config-fallback-derive", optional = true }
 figment = { version = "0.10.19" }
 serde = { version = "1.0.228", features = ["derive"] }
+
+[dev-dependencies]
+eyre = "0.6.12"
+tempfile = "3.27.0"
