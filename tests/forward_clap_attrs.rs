@@ -1,9 +1,17 @@
 use std::io::Write;
 
-use clap::Parser;
+use clap::{Error, Parser, error::ErrorKind};
 use clap_config_fallback::ConfigParser;
 use eyre::Result;
 use tempfile::NamedTempFile;
+
+fn parse_log(log: &str) -> Result<String, Error> {
+    if ["trace", "debug", "info", "warn", "error"].contains(&log.to_lowercase().as_str()) {
+        Ok(log.to_string())
+    } else {
+        Err(Error::new(ErrorKind::InvalidValue))
+    }
+}
 
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
@@ -15,7 +23,7 @@ struct Cli {
         alias = "verbosity",
         aliases = ["log", "verbosity"],
         default_value = "info",
-        value_parser = ["trace", "debug", "info", "warn", "error"],
+        value_parser = parse_log,
         ignore_case = true
     )]
     log_level: String,
@@ -27,19 +35,19 @@ struct Cli {
 }
 
 #[test]
-fn allowed_clap_args_are_forwarded_to_opts() -> Result<()> {
+fn forwards_value_parser_expr_path_to_config() -> Result<()> {
     let cli = Cli::try_parse_with_config_from([
         "bin",
         "--worker-threads",
         "7",
         "--log",
-        "DEBUG",
+        "DeBuG",
         "--timeout-ms",
         "1500",
     ])?;
 
     assert_eq!(cli.threads, 7);
-    assert_eq!(cli.log_level, "DEBUG");
+    assert_eq!(cli.log_level, "DeBuG");
     assert_eq!(cli.timeout_ms, Some(1500));
 
     Ok(())

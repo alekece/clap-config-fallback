@@ -163,6 +163,11 @@ fn generate_into_args_fn(config_parser: &ConfigParser) -> TokenStream {
                 args.extend(self.#field_ident.into_args());
             }
         } else {
+            let formatted_value = field
+                .value_format()
+                .map(|value_format| quote! { #value_format })
+                .unwrap_or_else(|| quote! { #field_ident.to_string() });
+
             match field
                 .attributes()
                 .filter_map(ClapArg::from_attr)
@@ -177,16 +182,16 @@ fn generate_into_args_fn(config_parser: &ConfigParser) -> TokenStream {
                 }
                 Some(flag_name) => {
                     quote! {
-                        if let Some(value) = self.#field_ident {
+                        if let Some(#field_ident) = self.#field_ident {
                             args.push(#flag_name.to_string());
-                            args.push(value.to_string());
+                            args.push(#formatted_value);
                         }
                     }
                 }
                 None => {
                     quote! {
-                        if let Some(value) = self.#field_ident {
-                            args.push(value.to_string());
+                        if let Some(#field_ident) = self.#field_ident {
+                            args.push(#formatted_value);
                         }
                     }
                 }

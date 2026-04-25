@@ -1,6 +1,8 @@
 use darling::{Error, FromMeta, util::Override};
 use heck::ToKebabCase;
-use syn::{Attribute, Expr, Ident, Meta, Token, parse_quote, punctuated::Punctuated};
+use syn::{
+    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, parse_quote, punctuated::Punctuated,
+};
 
 use crate::syn_utils::ExprExt;
 
@@ -29,6 +31,9 @@ pub struct ClapArg {
     alias: Option<LitStr>,
     /// Optional aliases for the argument, allowing it to be referenced by multiple names.
     aliases: Option<Vec<LitStr>>,
+    /// Optional value parser for the argument, allowing for custom parsing logic.
+    /// Only supports expression path.
+    value_parser: Option<Result<ExprPath, Error>>,
     /// Catch-all fields used to absorb ignored clap attributes.
     /// This prevents darling from failing when encountering unsupported args.
     #[allow(dead_code)]
@@ -56,6 +61,10 @@ impl ClapArg {
             .chain(&self.alias)
             .cloned()
             .collect()
+    }
+
+    pub fn value_parser(&self) -> Option<ExprPath> {
+        self.value_parser.clone().transpose().unwrap_or_default()
     }
 
     /// Generates the appropriate short or long flag for this argument based on the provided field
