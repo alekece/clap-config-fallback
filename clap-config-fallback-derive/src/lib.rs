@@ -232,8 +232,14 @@ fn generate_config_struct(config_parser: &ConfigParser) -> (Ident, TokenStream) 
                 }
             } else {
                 let field_ty = &field.ty().to_option();
+                let alias_attrs = field
+                    .attributes()
+                    .filter_map(ClapArg::from_attr)
+                    .flat_map(|arg| arg.aliases())
+                    .map(|alias| quote! { #[serde(alias = #alias)] });
 
                 quote! {
+                    #(#alias_attrs)*
                     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
                     #field_ident: #field_ty
                 }

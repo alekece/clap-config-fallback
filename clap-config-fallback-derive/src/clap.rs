@@ -25,6 +25,10 @@ pub struct ClapArg {
     long: Option<Override<String>>,
     /// Optional default value for the argument.
     default_value: Option<String>,
+    /// Optional alias for the argument, allowing it to be referenced by multiple names.
+    alias: Option<LitStr>,
+    /// Optional aliases for the argument, allowing it to be referenced by multiple names.
+    aliases: Option<Vec<LitStr>>,
     /// Catch-all fields used to absorb ignored clap attributes.
     /// This prevents darling from failing when encountering unsupported args.
     #[allow(dead_code)]
@@ -42,6 +46,16 @@ impl ClapArg {
     /// Returns the default value for this argument, if specified.
     pub fn default_value(&self) -> Option<&str> {
         self.default_value.as_deref()
+    }
+
+    /// Returns a vector of all aliases for this argument, combining both `alias` and `aliases` fields.
+    pub fn aliases(&self) -> Vec<LitStr> {
+        self.aliases
+            .iter()
+            .flatten()
+            .chain(&self.alias)
+            .cloned()
+            .collect()
     }
 
     /// Generates the appropriate short or long flag for this argument based on the provided field
