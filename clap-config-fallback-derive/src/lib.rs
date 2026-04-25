@@ -28,12 +28,17 @@ pub fn derive_parser_config(input: proc_macro::TokenStream) -> proc_macro::Token
     let config_format_fn = generate_config_format_fn(&config_parser);
     let into_args_fn = generate_into_args_fn(&config_parser);
     let from_args_fn = generate_from_args_fn(&config_parser);
+    let deserialize_fns = generate_deserialize_fns(&config_parser);
     let (config_ident, config_struct) = generate_config_struct(&config_parser);
     let (opts_ident, opts_struct) = generate_opts_struct(&config_parser);
 
     quote! {
         #config_struct
         #opts_struct
+
+        impl #config_ident {
+            #deserialize_fns
+        }
 
         impl ::clap_config_fallback::IntoArgs for #opts_ident {
             #into_args_fn
@@ -210,6 +215,38 @@ fn generate_into_args_fn(config_parser: &ConfigParser) -> TokenStream {
     }
 }
 
+fn generate_deserialize_fns(config_parser: &ConfigParser) -> TokenStream {
+    let deserialize_fns = config_parser.fields().filter(|field| !field.is_skipped()).filter_map(|field| {
+        if let Some(path) = field
+            .attributes()
+            .filter_map(ClapArg::from_attr)
+            .find_map(|arg| arg.value_parser())
+        {
+            let fn_ident = format_ident!("deserialize_{}", field.ident());
+            let field_ty = field.ty().to_option();
+
+            Some(quote! {
+                fn #fn_ident<'de, D>(deserializer: D) -> ::std::result::Result<#field_ty, D::Error>
+                where
+                    D: ::serde::de::Deserializer<'de>,
+                {
+                    let s: ::std::option::Option<String> = ::serde::Deserialize::deserialize(deserializer)?;
+
+                    s
+                        .map(|s| #path(s.as_str()).map_err(::serde::de::Error::custom))
+                        .transpose()
+                }
+            })
+        } else {
+            None
+        }
+    });
+
+    quote! {
+        #(#deserialize_fns)*
+    }
+}
+
 /// Generates the configuration struct which is used to serialize and deserialize the configuration
 /// file.
 ///
@@ -223,6 +260,23 @@ fn generate_config_struct(config_parser: &ConfigParser) -> (Ident, TokenStream) 
         .filter(|field| !field.is_skipped())
         .map(|field| {
             let field_ident = field.ident();
+            let clap_attrs = field
+                .attributes()
+                .filter_map(ClapArg::from_attr)
+                .collect::<Vec<_>>();
+            let alias_attrs = clap_attrs
+                .iter()
+                .flat_map(|arg| arg.aliases())
+                .map(|alias| quote! { #[serde(alias = #alias)] });
+            let deserialize_with_attr =
+                clap_attrs
+                    .iter()
+                    .find_map(|arg| arg.value_parser())
+                    .map(|_| {
+                        let deserialize_fn = format!("{}::deserialize_{}", ident, field_ident);
+
+                        quote! { #[serde(deserialize_with = #deserialize_fn)] }
+                    });
 
             if field
                 .attributes()
@@ -237,14 +291,10 @@ fn generate_config_struct(config_parser: &ConfigParser) -> (Ident, TokenStream) 
                 }
             } else {
                 let field_ty = &field.ty().to_option();
-                let alias_attrs = field
-                    .attributes()
-                    .filter_map(ClapArg::from_attr)
-                    .flat_map(|arg| arg.aliases())
-                    .map(|alias| quote! { #[serde(alias = #alias)] });
 
                 quote! {
                     #(#alias_attrs)*
+                    #deserialize_with_attr
                     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
                     #field_ident: #field_ty
                 }

@@ -3,7 +3,7 @@ use darling::{
     ast::{Data, Fields},
     util::Ignored,
 };
-use syn::{Attribute, Ident, Type};
+use syn::{Attribute, Expr, Ident, Type};
 
 use crate::TypeExt;
 
@@ -99,6 +99,11 @@ pub struct ConfigParserField {
     /// path field, if any.
     #[darling(default)]
     format: Option<ConfigFormat>,
+    /// An optional expression specifying how to format the value of this field when generating the
+    /// final command-line arguments.
+    /// Defaults to `to_string()` if not specified.
+    #[darling(default)]
+    pub value_format: Option<Expr>,
 }
 
 impl ConfigParserField {
@@ -131,6 +136,11 @@ impl ConfigParserField {
     /// Returns the configuration format specified for this field, or `ConfigFormat::Auto` if not.
     pub fn format(&self) -> Option<ConfigFormat> {
         self.format
+    }
+
+    /// Returns the optional expression specifying how to format the value of this field.
+    pub fn value_format(&self) -> Option<&Expr> {
+        self.value_format.as_ref()
     }
 }
 

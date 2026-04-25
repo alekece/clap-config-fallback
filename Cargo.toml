@@ -37,4 +37,5 @@ serde = { version = "1.0.228", features = ["derive"] }
 
 [dev-dependencies]
 eyre = "0.6.12"
+humantime = "2.3.0"
 tempfile = "3.27.0"
