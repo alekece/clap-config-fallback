@@ -8,7 +8,7 @@ Add configuration-file fallback to clap **without losing clap parsing, validatio
 
 `clap` is excellent at parsing CLI arguments and producing high-quality diagnostics.
 
-What it does not do out of the box is *merge a config file with CLI arguments while still enforcing  
+What it does not do out of the box is *merge a config file with CLI arguments while still enforcing 
 the same clap contract*.
 
 Common alternatives often:
@@ -127,3 +127,26 @@ Disables config fallback for all fields in the struct.
 #[config(skip_all)]
 struct Cli { /* ... */ }
 ```
+
+### `#[config(value_format = ...)]`
+
+Defines how a field value is converted into a `String` when rebuilding CLI arguments from the merged
+inputs.
+
+This conversion happens **after merging CLI arguments and configuration values**. It controls how 
+the final value is serialized back into a CLI-compatible string.
+
+The expression **must evaluate to a `String`**.
+
+The field identifier is available in scope, such as:
+
+```rust
+#[arg(long)]
+#[config(value_format = format!("{}s", duration.as_secs()))]
+duration: Duration,
+```
+
+#### Notes
+- The expression is evaluated on a reference to the field value.
+- This is the counterpart of clap’s `value_parser`, but for the **reverse direction** (value → string).
+- If omitted, the default behavior uses `ToString`.

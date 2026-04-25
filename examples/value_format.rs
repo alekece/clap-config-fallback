@@ -1,19 +1,14 @@
+use std::time::Duration;
+
 use clap::Parser;
 use clap_config_fallback::ConfigParser;
 
 #[derive(Debug, Parser, ConfigParser)]
 struct Cli {
-    #[arg(short, long)]
-    debug: bool,
-    #[arg(long)]
-    #[config(skip)]
-    profile: String,
-    #[arg(long)]
-    threads: usize,
     #[command(flatten)]
     database: DatabaseCli,
-    #[arg(long, default_value = "examples/config.toml")]
-    #[config(path, format = "toml")]
+    #[arg(long, default_value = "examples/config.json")]
+    #[config(path)]
     config_path: String,
 }
 
@@ -26,12 +21,12 @@ struct DatabaseCli {
 }
 
 #[derive(Debug, Parser, ConfigParser)]
-#[config(skip_all)]
 struct PoolCli {
     #[arg(long)]
     max_connections: u16,
-    #[arg(long)]
-    timeout: String,
+    #[arg(long, value_parser = humantime::parse_duration)]
+    #[config(value_format = humantime::format_duration(timeout).to_string())]
+    timeout: Duration,
 }
 
 fn main() {
