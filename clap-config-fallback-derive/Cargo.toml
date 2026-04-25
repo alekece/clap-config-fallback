@@ -1,8 +1,8 @@
 [package]
 name = "clap-config-fallback-derive"
-version = "0.1.1"
 description = "Macro implementation of #[derive(ConfigParser)]"
 keywords = ["clap", "config", "cli", "derive"]
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
