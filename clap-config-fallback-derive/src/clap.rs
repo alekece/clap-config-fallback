@@ -63,6 +63,7 @@ impl ClapArg {
             .collect()
     }
 
+    /// Returns the parsed `value_parser` expression path if available.
     pub fn value_parser(&self) -> Option<ExprPath> {
         self.value_parser.clone().transpose().unwrap_or_default()
     }

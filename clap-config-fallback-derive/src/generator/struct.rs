@@ -8,11 +8,15 @@ use crate::{
     generator::{GenerationTarget, helpers},
 };
 
+/// Common interface for parsed derive input that behave like structs.
 pub trait StructLike {
+    /// Identifier of the struct.
     fn ident(&self) -> &Ident;
+    /// Fields of the struct.
     fn fields(&self) -> &[NamedField];
 }
 
+/// Generatates `Opts` and `Config` helper structs and impls for derive inputs.
 pub struct StructGenerator<T: StructLike> {
     input: T,
 }
@@ -95,6 +99,7 @@ impl StructGenerator<ConfigArgs> {
 }
 
 impl<T: StructLike> StructGenerator<T> {
+    /// Creates a new `StructGenerator` for the given derive input.
     pub fn new(input: T) -> Self {
         Self { input }
     }

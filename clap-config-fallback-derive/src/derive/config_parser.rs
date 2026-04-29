@@ -35,7 +35,8 @@ impl StructLike for ConfigParser {
 }
 
 impl ConfigParser {
-    pub fn autocorrect(mut self) -> Result<Self, Error> {
+    /// Propagate the `skip_all` flag to all fields, marking them as skipped if `skip_all` is enabled.
+    fn autocorrect(mut self) -> Result<Self, Error> {
         match &mut self.data {
             Data::Struct(Fields { fields, .. }) => fields
                 .iter_mut()

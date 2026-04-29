@@ -7,6 +7,7 @@ use crate::{
     derive::{ConfigFormat, Skippable},
 };
 
+/// Named-field wrapper used by derives that only support struct-style fields.
 #[derive(Deref, DerefMut)]
 pub struct NamedField(Field);
 
@@ -35,6 +36,7 @@ impl Skippable for NamedField {
 }
 
 impl NamedField {
+    /// Returns the field identifier, always present for named field.
     pub fn ident(&self) -> &Ident {
         self.0.ident().as_ref().unwrap()
     }
@@ -88,6 +90,7 @@ impl Field {
         &self.ty
     }
 
+    /// Returns forwarded `#[arg(...)]` and `#[command(...)]` attributes.
     pub fn attributes(&self) -> impl Iterator<Item = &Attribute> {
         self.attrs.iter()
     }
@@ -109,6 +112,8 @@ impl Field {
         self.value_format.as_ref()
     }
 
+    /// Verify that the path field is a `String` or `Option<String>`, as required for determining
+    /// the configuration file path.
     fn autocorrect(self) -> Result<Self, Error> {
         if self.path && !(self.ty.is("String") || self.ty.is_option_of("String")) {
             return Err(Error::custom(

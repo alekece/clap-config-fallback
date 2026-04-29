@@ -13,6 +13,7 @@ use clap::{ArgMatches, Args, CommandFactory, Error, Parser, Subcommand, error::E
 use figment::{Figment, providers::*};
 use serde::{Serialize, de::DeserializeOwned};
 
+#[cfg(feature = "derive")]
 pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand};
 
 /// Supported configuration file formats.
@@ -64,13 +65,23 @@ pub trait ConfigSource {
     }
 }
 
+/// Companion trait for clap [`Args`] types participating in config fallback.
+///
+/// This trait is implemented by `#[derive(ConfigArgs)]`.
 pub trait ConfigArgs: Sized + Args {
+    /// Intermediate optional representation used during merge.
     type Opts: Args + Serialize + DeserializeOwned + IntoArgs + FromArgs;
+    /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
 }
 
+/// Companion trait for clap [`Subcommand`] types participating in config fallback.
+///
+/// This trait is implemented by `#[derive(ConfigSubcommand)]`.
 pub trait ConfigSubcommand: Sized + Subcommand {
+    /// Intermediate optional representation used during merge.
     type Opts: Subcommand + Serialize + DeserializeOwned + IntoArgs + FromArgs;
+    /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
 }
 

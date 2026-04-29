@@ -5,15 +5,19 @@ use syn::Ident;
 
 use crate::{
     TypeExt,
-    derive::{ConfigSubcommand, Variant, VariantKind},
+    derive::{ConfigSubcommand, Variant, VariantShape},
     generator::{GenerationTarget, helpers},
 };
 
+/// Common interface for parsed derive input that behave like enums.
 pub trait EnumLike {
+    /// Identifier of the enum.
     fn ident(&self) -> &Ident;
+    /// Variant of the enum.
     fn variants(&self) -> &[Variant];
 }
 
+/// Generatates `Opts` and `Config` helper enums and impls for derive inputs.
 pub struct EnumGenerator<T: EnumLike> {
     input: T,
 }
@@ -55,6 +59,7 @@ impl EnumGenerator<ConfigSubcommand> {
 }
 
 impl<T: EnumLike> EnumGenerator<T> {
+    /// Creates a new `EnumGenerator` for the given derive input.
     pub fn new(input: T) -> Self {
         Self { input }
     }
@@ -69,14 +74,14 @@ impl<T: EnumLike> EnumGenerator<T> {
             .map(|variant| {
                 let variant_ident = &variant.ident();
 
-                match variant.kind() {
-                    VariantKind::Unit => quote! { #variant_ident },
-                    VariantKind::Newtype(ty) => {
+                match variant.shape() {
+                    VariantShape::Unit => quote! { #variant_ident },
+                    VariantShape::Newtype(ty) => {
                         let field_ty = format_ident!("{}{}", ty.ident().unwrap(), target.suffix());
 
                         quote! { #variant_ident(#field_ty) }
                     }
-                    VariantKind::Struct(fields) => {
+                    VariantShape::Struct(fields) => {
                         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
                         let fields = fields
                             .iter()
@@ -113,19 +118,19 @@ impl<T: EnumLike> EnumGenerator<T> {
             let variant_ident = variant.ident();
             let formatted_variant = variant_ident.to_string().to_kebab_case();
 
-            match variant.kind() {
-                VariantKind::Unit => quote! {
+            match variant.shape() {
+                VariantShape::Unit => quote! {
                     Self::#variant_ident => {
                         #ident.push(#formatted_variant.to_string());
                     }
                 },
-                VariantKind::Newtype(_) => quote! {
+                VariantShape::Newtype(_) => quote! {
                     Self::#variant_ident(value) => {
                         #ident.push(#formatted_variant.to_string());
                         #ident.extend(value.into_args());
                     }
                 },
-                VariantKind::Struct(fields) => {
+                VariantShape::Struct(fields) => {
                     let (field_idents, field_statements): (Vec<_>, Vec<_>) = fields
                         .iter()
                         .map(|field| {
@@ -165,12 +170,12 @@ impl<T: EnumLike> EnumGenerator<T> {
             let ident = variant.ident();
             let formatted_variant = ident.to_string().to_kebab_case();
 
-            match variant.kind() {
-                VariantKind::Unit => quote! {
+            match variant.shape() {
+                VariantShape::Unit => quote! {
                     ::std::option::Option::Some((#formatted_variant, _)) =>
                         ::std::option::Option::Some(Self::#ident)
                 },
-                VariantKind::Newtype(ty) => {
+                VariantShape::Newtype(ty) => {
                     let field_ty = format_ident!("{}{}", ty.ident().unwrap(), field_suffix);
 
                     quote! {
@@ -178,7 +183,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                             #field_ty::from_args(args).map(Self::#ident)
                     }
                 }
-                VariantKind::Struct(fields) => {
+                VariantShape::Struct(fields) => {
                     let field_assignments = fields
                         .iter()
                         .map(|field| helpers::generate_from_args_initializer(field, field_suffix));

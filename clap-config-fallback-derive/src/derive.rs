@@ -13,5 +13,5 @@ pub use self::{
     config_subcommand::ConfigSubcommand,
     field::{Field, NamedField},
     skippable::Skippable,
-    variant::{Variant, VariantKind},
+    variant::{Variant, VariantShape},
 };

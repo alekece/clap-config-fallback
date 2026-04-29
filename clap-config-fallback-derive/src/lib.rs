@@ -1,3 +1,5 @@
+//! Proc-macro implementation for `clap_config_fallback` derives.
+
 mod clap;
 mod derive;
 mod generator;
@@ -13,6 +15,7 @@ use self::{
     syn_utils::TypeExt,
 };
 
+/// Derives `clap_config_fallback::ConfigParser` for a clap `Parser` root struct.
 #[proc_macro_derive(ConfigParser, attributes(config))]
 pub fn derive_config_parse(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -23,6 +26,7 @@ pub fn derive_config_parse(input: proc_macro::TokenStream) -> proc_macro::TokenS
         .into()
 }
 
+/// Derives `clap_config_fallback::ConfigArgs` for clap `Args` structs.
 #[proc_macro_derive(ConfigArgs, attributes(config))]
 pub fn derive_config_args(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -33,6 +37,7 @@ pub fn derive_config_args(input: proc_macro::TokenStream) -> proc_macro::TokenSt
         .into()
 }
 
+/// Derives `clap_config_fallback::ConfigSubcommand` for clap `Subcommand` enums.
 #[proc_macro_derive(ConfigSubcommand, attributes(config))]
 pub fn derive_config_subcommand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

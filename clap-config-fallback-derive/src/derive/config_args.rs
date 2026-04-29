@@ -7,6 +7,7 @@ use crate::{
     generator::StructLike,
 };
 
+/// Wrapper aound [`ConfigParser`] for `Args`-specific parsing and code generation.
 #[derive(Deref)]
 pub struct ConfigArgs(ConfigParser);
 
