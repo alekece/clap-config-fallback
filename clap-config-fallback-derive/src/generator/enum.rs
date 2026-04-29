@@ -4,9 +4,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    derive::{ConfigSubcommand, Variant, VariantShape},
-    generator::{helpers, GenerationTarget},
     TypeExt,
+    derive::{ConfigSubcommand, Variant, VariantShape},
+    generator::{GenerationTarget, helpers},
 };
 
 /// Common interface for parsed derive input that behave like enums.
