@@ -24,7 +24,7 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-default = ["toml", "json", "yaml", "derive"]
+default = ["toml", "json", "yaml"]
 derive = ["clap-config-fallback-derive"]
 toml = ["figment/toml"]
 json = ["figment/json"]
