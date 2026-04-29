@@ -79,6 +79,7 @@ pub(crate) fn generate_field_definition(
             quote! {
                 #(#alias_attrs)*
                 #deserialize_attr
+                #[serde(default)]
             }
         }
     };
