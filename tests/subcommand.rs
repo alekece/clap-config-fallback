@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, time::Duration};
 
 use assert_matches::assert_matches;
 use clap::{Args, Parser, Subcommand};
@@ -23,6 +23,9 @@ enum Command {
     Debug {
         #[arg(long)]
         verbose: bool,
+        #[arg(short, long, value_parser = humantime::parse_duration)]
+        #[config(value_format = humantime::format_duration(timeout).to_string())]
+        timeout: Option<Duration>,
     },
     #[config(skip)]
     Test,
@@ -85,7 +88,13 @@ fn struct_variant_is_loaded_from_config() -> Result<()> {
         &file.path().display().to_string(),
     ])?;
 
-    assert_matches!(cli.command, Command::Debug { verbose } if verbose);
+    assert_matches!(
+        cli.command,
+        Command::Debug {
+            verbose: true,
+            timeout: None
+        }
+    );
 
     Ok(())
 }

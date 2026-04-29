@@ -1,8 +1,9 @@
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::{ClapArg, ClapCommand, TypeExt, derive::NamedField, generator::GenerationTarget};
+use crate::{derive::NamedField, generator::GenerationTarget, ClapArg, ClapCommand, TypeExt};
 
 pub(crate) fn generate_field_definition(
     ident: &Ident,
@@ -62,7 +63,12 @@ pub(crate) fn generate_field_definition(
                 .find_map(|arg| arg.value_parser())
                 .map(|_| {
                     let deserialize_fn = if let Some(field_prefix) = field_prefix {
-                        format!("{}::deserialize_{}_{}", ident, field_prefix, field_ident)
+                        format!(
+                            "{}::deserialize_{}_{}",
+                            ident,
+                            field_prefix.to_string().to_snake_case(),
+                            field_ident
+                        )
                     } else {
                         format!("{}::deserialize_{}", ident, field_ident)
                     };
@@ -179,7 +185,11 @@ pub(crate) fn generate_deserialize_fn(
 
     let field_ty = field.ty().to_option();
     let fn_ident = if let Some(field_prefix) = field_prefix {
-        format_ident!("deserialize_{}_{}", field_prefix, field.ident())
+        format_ident!(
+            "deserialize_{}_{}",
+            field_prefix.to_string().to_snake_case(),
+            field.ident()
+        )
     } else {
         format_ident!("deserialize_{}", field.ident())
     };

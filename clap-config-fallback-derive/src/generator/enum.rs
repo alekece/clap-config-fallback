@@ -4,9 +4,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    TypeExt,
     derive::{ConfigSubcommand, Variant, VariantShape},
-    generator::{GenerationTarget, helpers},
+    generator::{helpers, GenerationTarget},
+    TypeExt,
 };
 
 /// Common interface for parsed derive input that behave like enums.
@@ -207,17 +207,19 @@ impl<T: EnumLike> EnumGenerator<T> {
     }
 
     fn generate_deserialize_fns(&self, target: GenerationTarget) -> TokenStream {
-        let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
-
         let deserialize_fns = self
             .input
             .variants()
             .iter()
             .filter(|variant| !target.should_skip(*variant))
-            .filter_map(|variant| variant.as_struct())
-            .flat_map(|fields| fields.into_iter().map(|field| (ident.clone(), field)))
+            .filter_map(|variant| {
+                variant
+                    .as_struct()
+                    .map(|fields| fields.into_iter().map(|field| (variant.ident(), field)))
+            })
+            .flatten()
             .filter(|(_, field)| !target.should_skip(field))
-            .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(&ident)));
+            .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(ident)));
 
         quote! {
             #(#deserialize_fns)*
