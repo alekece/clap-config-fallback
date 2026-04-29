@@ -1,6 +1,10 @@
-debug = false
+debug = true
 profile = "dev"
-threads = 4
+threads = 32
+
+[command]
+ref = "debug"
+verbose = true
 
 [server]
 url = "http://localhost:8080"

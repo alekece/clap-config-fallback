@@ -1,5 +1,5 @@
-use clap::Parser;
-use clap_config_fallback::ConfigParser;
+use clap::{Args, Parser};
+use clap_config_fallback::{ConfigParser, ConfigArgs};
 
 #[derive(Debug, Parser, ConfigParser)]
 struct Cli {
@@ -16,7 +16,7 @@ struct Cli {
     config_path: String,
 }
 
-#[derive(Debug, Parser, ConfigParser)]
+#[derive(Debug, Args, ConfigArgs)]
 struct ServerCli {
     #[arg(long)]
     url: String,
@@ -24,7 +24,7 @@ struct ServerCli {
     tls: TlsCli,
 }
 
-#[derive(Debug, Parser, ConfigParser)]
+#[derive(Debug, Args, ConfigArgs)]
 struct TlsCli {
     #[arg(long)]
     enabled: bool,

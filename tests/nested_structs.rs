@@ -1,14 +1,14 @@
 use std::io::Write;
 
-use clap::Parser;
-use clap_config_fallback::ConfigParser;
+use clap::{Args, Parser};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
 use eyre::Result;
 use tempfile::NamedTempFile;
 
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct NestedCli {
     #[command(flatten)]
-    logging: LoggingCli,
+    logging: LoggingArgs,
     #[arg(long)]
     profile: String,
     #[arg(long)]
@@ -16,8 +16,8 @@ struct NestedCli {
     config_path: Option<String>,
 }
 
-#[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
-struct LoggingCli {
+#[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
+struct LoggingArgs {
     #[arg(long)]
     level: String,
     #[arg(long)]

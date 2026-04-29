@@ -1,7 +1,11 @@
 {
+  "verbose": true,
   "debug": true,
   "profile": "prod",
   "threads": 10,
+  "command": {
+    "ref": "test"
+  },
   "server": {
     "url": "http://localhost:8080",
     "request_timeout": "30s",
