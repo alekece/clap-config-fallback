@@ -157,7 +157,6 @@ pub trait ConfigParser: Sized + Parser {
             .extract::<Self::Opts>()
             .map_err(|e| Self::command().error(ErrorKind::InvalidValue, e.to_string()))?;
 
-
         Self::try_parse_from(iter::once(command_name).chain(cli.into_args()))
     }
 }

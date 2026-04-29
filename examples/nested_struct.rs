@@ -1,5 +1,5 @@
 use clap::{Args, Parser};
-use clap_config_fallback::{ConfigParser, ConfigArgs};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
 
 #[derive(Debug, Parser, ConfigParser)]
 struct Cli {

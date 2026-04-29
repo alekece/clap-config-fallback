@@ -77,7 +77,6 @@ impl TypeExt for Type {
             parse_quote! { Option<#self> }
         }
     }
-
 }
 
 /// Extension trait for `syn::Expr`.

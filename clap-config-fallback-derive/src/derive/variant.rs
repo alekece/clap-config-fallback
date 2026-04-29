@@ -1,7 +1,14 @@
-use darling::{Error, FromVariant, ast::{Fields, Style}, error::Accumulator};
+use darling::{
+    Error, FromVariant,
+    ast::{Fields, Style},
+    error::Accumulator,
+};
 use syn::{Ident, Type};
 
-use crate::{TypeExt, derive::{Field, NamedField, Skippable}};
+use crate::{
+    TypeExt,
+    derive::{Field, NamedField, Skippable},
+};
 
 pub enum VariantKind {
     Unit,
@@ -65,15 +72,15 @@ impl Variant {
     fn autocorrect(mut self) -> Result<Self, Error> {
         let mut accumulator = Accumulator::default();
 
-        if let Some(ty) = self.as_newtype() && ty.is_unit() {
+        if let Some(ty) = self.as_newtype()
+            && ty.is_unit()
+        {
             self.fields = Fields::new(Style::Unit, Vec::default());
         }
 
         if self.fields.is_tuple() && self.fields.fields.len() != 1 {
-            accumulator.push(
-                Error::custom("tuple enums are not supported")
-                    .with_span(self.ident())
-            );
+            accumulator
+                .push(Error::custom("tuple enums are not supported").with_span(self.ident()));
         }
 
         if self.fields.is_struct() {

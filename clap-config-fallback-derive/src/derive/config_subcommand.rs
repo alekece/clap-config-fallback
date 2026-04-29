@@ -1,4 +1,4 @@
-use darling::{ast::Data, util::Ignored, Error, FromDeriveInput};
+use darling::{Error, FromDeriveInput, ast::Data, util::Ignored};
 use syn::Ident;
 
 use crate::{derive::Variant, generator::EnumLike};

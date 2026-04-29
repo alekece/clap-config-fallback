@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::{derive::NamedField, generator::GenerationTarget, ClapArg, ClapCommand, TypeExt};
+use crate::{ClapArg, ClapCommand, TypeExt, derive::NamedField, generator::GenerationTarget};
 
 pub(crate) fn generate_field_definition(
     ident: &Ident,

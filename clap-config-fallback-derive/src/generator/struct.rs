@@ -3,9 +3,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    derive::{ConfigFormat, ConfigParser, NamedField},
-    generator::{helpers, GenerationTarget},
     ClapArg, ConfigArgs,
+    derive::{ConfigFormat, ConfigParser, NamedField},
+    generator::{GenerationTarget, helpers},
 };
 
 pub trait StructLike {
@@ -155,7 +155,7 @@ impl<T: StructLike> StructGenerator<T> {
             }
         }
     }
-   
+
     fn generate_config_path_fn(&self) -> TokenStream {
         let ident = format_ident!("self");
         let config_path = self

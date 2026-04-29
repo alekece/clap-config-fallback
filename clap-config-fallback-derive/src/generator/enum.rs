@@ -4,9 +4,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    derive::{ConfigSubcommand, Variant, VariantKind},
-    generator::{helpers, GenerationTarget},
     TypeExt,
+    derive::{ConfigSubcommand, Variant, VariantKind},
+    generator::{GenerationTarget, helpers},
 };
 
 pub trait EnumLike {

@@ -25,7 +25,7 @@ enum Command {
         verbose: bool,
     },
     #[config(skip)]
-    Test
+    Test,
 }
 
 #[derive(Debug, Args, ConfigArgs)]
@@ -145,7 +145,6 @@ fn unknown_config_tag_returns_error() -> Result<()> {
 
     Ok(())
 }
-
 
 #[test]
 fn skipped_config_variant_returns_error() -> Result<()> {

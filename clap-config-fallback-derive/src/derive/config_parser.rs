@@ -5,10 +5,7 @@ use darling::{
 };
 use syn::Ident;
 
-use crate::{
-    derive::NamedField,
-    generator::StructLike,
-};
+use crate::{derive::NamedField, generator::StructLike};
 
 /// Parser for the `ConfigParser` derive macro, extracting struct and field information along with
 /// custom attributes.

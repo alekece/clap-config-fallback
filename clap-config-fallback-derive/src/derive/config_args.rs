@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::{
     derive::{ConfigParser, NamedField},
-    generator::StructLike
+    generator::StructLike,
 };
 
 #[derive(Deref)]

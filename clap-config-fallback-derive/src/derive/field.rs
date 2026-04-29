@@ -3,8 +3,8 @@ use derive_more::{Deref, DerefMut};
 use syn::{Attribute, Expr, Ident, Type};
 
 use crate::{
-    derive::{ConfigFormat, Skippable},
     TypeExt,
+    derive::{ConfigFormat, Skippable},
 };
 
 #[derive(Deref, DerefMut)]
