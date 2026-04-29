@@ -4,12 +4,21 @@ use syn::{Expr, GenericArgument, Ident, PathArguments, Type, parse_quote};
 pub trait TypeExt {
     /// Extracts the identifier from a type.
     fn ident(&self) -> Option<&Ident>;
-    /// Converts the type to an `Option` type if it is not already an `Option`.
-    fn to_option(&self) -> Type;
     /// Checks if the type is an `Option` of a specific identifier.
-    fn is_option_of(&self, ident: &str) -> bool;
     /// Checks if the type is a specific identifier.
     fn is(&self, ident: &str) -> bool;
+
+    /// Checks if the type is an `Option` of a specific identifier.
+    fn is_option_of(&self, ident: &str) -> bool;
+
+    /// Attempts to unwrap an `Option` type, returning the inner type if it is an `Option`,
+    /// or `None` otherwise.
+    fn unwrap_option(&self) -> &Self;
+
+    /// Converts the type to an `Option` type if it is not already an `Option`.
+    fn to_option(&self) -> Type;
+
+    fn is_unit(&self) -> bool;
 }
 
 impl TypeExt for Type {
@@ -20,11 +29,18 @@ impl TypeExt for Type {
         }
     }
 
-    fn to_option(&self) -> Type {
-        if self.is("Option") {
-            self.clone()
+    fn is_unit(&self) -> bool {
+        matches!(self, Type::Tuple(tuple) if tuple.elems.is_empty())
+    }
+
+    fn is(&self, ident: &str) -> bool {
+        if let Type::Path(type_path) = self
+            && let Some(segment) = type_path.path.segments.last()
+            && segment.ident == ident
+        {
+            true
         } else {
-            parse_quote! { Option<#self> }
+            false
         }
     }
 
@@ -41,16 +57,27 @@ impl TypeExt for Type {
         }
     }
 
-    fn is(&self, ident: &str) -> bool {
+    fn unwrap_option(&self) -> &Self {
         if let Type::Path(type_path) = self
             && let Some(segment) = type_path.path.segments.last()
-            && segment.ident == ident
+            && segment.ident == "Option"
+            && let PathArguments::AngleBracketed(args) = &segment.arguments
+            && let Some(GenericArgument::Type(ty)) = args.args.first()
         {
-            true
+            ty
         } else {
-            false
+            self
         }
     }
+
+    fn to_option(&self) -> Type {
+        if self.is("Option") {
+            self.clone()
+        } else {
+            parse_quote! { Option<#self> }
+        }
+    }
+
 }
 
 /// Extension trait for `syn::Expr`.
