@@ -9,11 +9,11 @@
 
 use std::{ffi::OsString, iter, path::PathBuf};
 
-use clap::{ArgMatches, CommandFactory, Error, Parser, error::ErrorKind};
+use clap::{ArgMatches, Args, CommandFactory, Error, Parser, Subcommand, error::ErrorKind};
 use figment::{Figment, providers::*};
 use serde::{Serialize, de::DeserializeOwned};
 
-pub use clap_config_fallback_derive::ConfigParser;
+pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand};
 
 /// Supported configuration file formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub trait IntoArgs {
 ///
 /// This pass captures values explicitly provided on the CLI before config fallback is applied.
 pub trait FromArgs: Sized {
-    fn from_args(args: &ArgMatches) -> Self;
+    fn from_args(args: &ArgMatches) -> Option<Self>;
 }
 
 /// Provides configuration path and format discovery for fallback loading.
@@ -63,13 +63,24 @@ pub trait ConfigSource {
         })
     }
 }
+
+pub trait ConfigArgs: Sized + Args {
+    type Opts: Args + Serialize + DeserializeOwned + IntoArgs + FromArgs;
+    type Config: Serialize + DeserializeOwned;
+}
+
+pub trait ConfigSubcommand: Sized + Subcommand {
+    type Opts: Subcommand + Serialize + DeserializeOwned + IntoArgs + FromArgs;
+    type Config: Serialize + DeserializeOwned;
+}
+
 /// Parse a clap struct with optional configuration-file fallback.
 ///
 /// Deriving `ConfigParser` generates an internal optional `Opts` type and a config-deserialization
 /// type, then wires them into this trait.
 pub trait ConfigParser: Sized + Parser {
     /// Intermediate optional representation used for CLI/config merge.
-    type Opts: Parser + Serialize + DeserializeOwned + IntoArgs + FromArgs + ConfigSource;
+    type Opts: Parser + Serialize + DeserializeOwned + IntoArgs + FromArgs + Default + ConfigSource;
     /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
 
@@ -104,7 +115,7 @@ pub trait ConfigParser: Sized + Parser {
         let command = <Self::Opts as CommandFactory>::command();
         let command_name = command.get_name().to_owned();
         let args = command.try_get_matches_from(itr)?;
-        let opts = Self::Opts::from_args(&args);
+        let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
         let config = opts.config_path().map(|path| {
             let path = PathBuf::from(path);
@@ -145,6 +156,7 @@ pub trait ConfigParser: Sized + Parser {
         let cli = cli
             .extract::<Self::Opts>()
             .map_err(|e| Self::command().error(ErrorKind::InvalidValue, e.to_string()))?;
+
 
         Self::try_parse_from(iter::once(command_name).chain(cli.into_args()))
     }
