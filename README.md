@@ -219,6 +219,22 @@ Defines the field used to select the active subcommand in the configuration.
 
 **Required for `ConfigSubcommand`**
 
+### `#[config(alias = "...", aliases = ["...", "..."])]`
+
+Adds a configuration-only alias for a field using `#[command(...)]`.
+
+This is useful for nested config sections, especially because clap does not support aliases on
+`#[command(...)]` fields.
+
+```rust
+#[derive(Parser, ConfigParser)]
+struct Cli {
+    #[command(subcommand)]
+    #[config(alias = "cmd")]
+    command: Command,
+}
+```
+ 
 ## Attribute reference
 
 | Attribute | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose |
@@ -229,3 +245,5 @@ Defines the field used to select the active subcommand in the configuration.
 | `#[config(skip_all)]` | ✅ | ✅ | ✅ | Excludes all fields or variants from config generation |
 | `#[config(value_format = ...)]` | ✅ | ✅ | ✅ | Converts a merged value back into a CLI-compatible string |
 | `#[config(tag = "...")]` | ❌ | ❌ | ✅ | Defines the config field used to select a subcommand variant |
+| `#[config(alias = "...")]` | ✅ | ✅ | ✅ | Adds one configuration-only alias for a `#[command(...)]` field |
+| `#[config(aliases = ["...", "..."])]` | ✅ | ✅ | ✅ | Adds multiple configuration-only aliases for a `#[command(...)]` field |
