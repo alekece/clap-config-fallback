@@ -1,6 +1,6 @@
 use darling::{Error, FromField};
 use derive_more::{Deref, DerefMut};
-use syn::{Attribute, Expr, Ident, Type};
+use syn::{Attribute, Expr, Ident, LitStr, Type};
 
 use crate::{
     TypeExt,
@@ -71,6 +71,10 @@ pub struct Field {
     /// Defaults to `ToString::to_string()` if not specified.
     #[darling(default)]
     value_format: Option<Expr>,
+    #[darling(default)]
+    alias: Option<LitStr>,
+    #[darling(default)]
+    aliases: Option<Vec<LitStr>>,
     #[darling(skip)]
     commands: Option<Vec<ClapCommand>>,
     #[darling(skip)]
@@ -116,9 +120,28 @@ impl Field {
         self.value_format.as_ref()
     }
 
+    pub fn aliases(&self) -> Vec<LitStr> {
+        self.aliases
+            .iter()
+            .flatten()
+            .chain(&self.alias)
+            .cloned()
+            .collect()
+    }
+
+    pub fn commands(&self) -> &[ClapCommand] {
+        self.commands.as_ref().unwrap()
+    }
+
+    pub fn args(&self) -> &[ClapArg] {
+        self.args.as_ref().unwrap()
+    }
+
     /// Verify that the path field is a `String` or `Option<String>`, as required for determining
     /// the configuration file path.
     fn autocorrect(mut self) -> Result<Self, Error> {
+        let mut error = Error::accumulator();
+
         self.commands = Some(
             self.attrs
                 .iter()
@@ -126,13 +149,25 @@ impl Field {
                 .collect(),
         );
         self.args = Some(self.attrs.iter().filter_map(ClapArg::from_attr).collect());
-        if self.path && !(self.ty.is("String") || self.ty.is_option_of("String")) {
-            return Err(Error::custom(
-                "`#[config(path)]` requires a field of type `String` or `Option<String>`",
-            )
-            .with_span(&self.ident));
+
+        if let Some(_) = self.alias
+            && self.commands().is_empty()
+        {
+            error.push(
+                Error::custom(r#"#[config(alias = "...")] can only be used on fields with `#[command(...)]` attributes"#)
+                    .with_span(&self.ident)
+            );
         }
 
-        Ok(self)
+        if self.path && !(self.ty.is("String") || self.ty.is_option_of("String")) {
+            error.push(
+                Error::custom(
+                    "`#[config(path)]` requires a field of type `String` or `Option<String>`",
+                )
+                .with_span(&self.ident),
+            );
+        }
+
+        error.finish().map(|_| self)
     }
 }

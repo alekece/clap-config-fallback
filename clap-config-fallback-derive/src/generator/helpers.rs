@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::{ClapArg, ClapCommand, TypeExt, derive::NamedField, generator::GenerationTarget};
+use crate::{ClapArg, TypeExt, derive::NamedField, generator::GenerationTarget};
 
 pub(crate) fn generate_field_definition(
     ident: &Ident,
@@ -21,10 +21,6 @@ pub(crate) fn generate_field_definition(
         );
 
         return match target {
-            GenerationTarget::Config => quote! {
-                #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                #field_ident: ::std::option::Option<#field_ty>
-            },
             GenerationTarget::Opts => {
                 let field_attrs = field.attributes();
 
@@ -32,6 +28,18 @@ pub(crate) fn generate_field_definition(
                     #(#field_attrs)*
                     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
                     #field_ident: Option<#field_ty>
+                }
+            }
+            GenerationTarget::Config => {
+                let alias_attrs = field
+                    .aliases()
+                    .into_iter()
+                    .map(|alias| quote! { #[serde(alias = #alias)] });
+
+                quote! {
+                    #(#alias_attrs)*
+                    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+                    #field_ident: ::std::option::Option<#field_ty>
                 }
             }
         };

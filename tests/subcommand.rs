@@ -12,6 +12,7 @@ struct Cli {
     #[config(path, format = "toml")]
     config_path: String,
     #[command(subcommand)]
+    #[config(aliases = ["cmd", "action"])]
     command: Command,
 }
 
@@ -59,7 +60,7 @@ fn empty_variant_is_loaded_from_config() -> Result<()> {
 fn newtype_variant_is_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
+    writeln!(file, r#"[cmd]"#)?;
     writeln!(file, r#"ref = "build""#)?;
     writeln!(file, r#"target = "x86_64-unknown-linux-gnu""#)?;
 
@@ -78,7 +79,7 @@ fn newtype_variant_is_loaded_from_config() -> Result<()> {
 fn struct_variant_is_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
+    writeln!(file, r#"[action]"#)?;
     writeln!(file, r#"ref = "debug""#)?;
     writeln!(file, r#"verbose = true"#)?;
 

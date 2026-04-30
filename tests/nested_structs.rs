@@ -8,6 +8,7 @@ use tempfile::NamedTempFile;
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct NestedCli {
     #[command(flatten)]
+    #[config(alias = "service")]
     logging: LoggingArgs,
     #[arg(long)]
     profile: String,
@@ -29,7 +30,7 @@ fn nested_fields_can_be_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
     writeln!(file, r#"profile = "prod""#)?;
-    writeln!(file, "[logging]")?;
+    writeln!(file, "[service]")?;
     writeln!(file, r#"level = "warn""#)?;
     writeln!(file, "interval_secs = 30")?;
 
