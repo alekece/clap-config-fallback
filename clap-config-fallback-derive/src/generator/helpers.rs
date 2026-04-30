@@ -13,10 +13,7 @@ pub(crate) fn generate_field_definition(
 ) -> TokenStream {
     let field_ident = field.ident();
 
-    if let Some(field_attr) = field
-        .attributes()
-        .find(|attr| ClapCommand::from_attr(attr).is_some())
-    {
+    if !field.commands().is_empty() {
         let field_ty = format_ident!(
             "{}{}",
             field.ty().unwrap_option().ident().unwrap(),
@@ -24,57 +21,62 @@ pub(crate) fn generate_field_definition(
         );
 
         return match target {
-            GenerationTarget::Opts => quote! {
-                #field_attr
-                #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                #field_ident: Option<#field_ty>
-            },
             GenerationTarget::Config => quote! {
                 #[serde(skip_serializing_if = "::std::option::Option::is_none")]
                 #field_ident: ::std::option::Option<#field_ty>
             },
+            GenerationTarget::Opts => {
+                let field_attrs = field.attributes();
+
+                quote! {
+                    #(#field_attrs)*
+                    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+                    #field_ident: Option<#field_ty>
+                }
+            }
         };
     }
 
     let field_ty = field.ty().to_option();
     let field_attrs = match target {
         GenerationTarget::Opts => {
-            let attrs = field.attributes().cloned().map(ClapArg::sanitize);
+            let sanitized_attrs = field.attributes().iter().cloned().map(ClapArg::sanitize);
             let bool_attr = field
                 .ty()
                 .is("bool")
                 .then(|| quote! { #[arg(action = clap::ArgAction::SetTrue)] });
 
             quote! {
-                #(#attrs)*
+                #(#sanitized_attrs)*
                 #bool_attr
             }
         }
         GenerationTarget::Config => {
             let alias_attrs = field
-                .attributes()
-                .filter_map(ClapArg::from_attr)
-                .flat_map(|arg| arg.aliases())
+                .args()
+                .iter()
+                .flat_map(ClapArg::aliases)
                 .map(|alias| quote! { #[serde(alias = #alias)] });
 
-            let deserialize_attr = field
-                .attributes()
-                .filter_map(ClapArg::from_attr)
-                .find_map(|arg| arg.value_parser())
-                .map(|_| {
-                    let deserialize_fn = if let Some(field_prefix) = field_prefix {
-                        format!(
-                            "{}::deserialize_{}_{}",
-                            ident,
-                            field_prefix.to_string().to_snake_case(),
-                            field_ident
-                        )
-                    } else {
-                        format!("{}::deserialize_{}", ident, field_ident)
-                    };
+            let deserialize_attr =
+                field
+                    .args()
+                    .iter()
+                    .find_map(|arg| arg.value_parser())
+                    .map(|_| {
+                        let deserialize_fn = if let Some(field_prefix) = field_prefix {
+                            format!(
+                                "{}::deserialize_{}_{}",
+                                ident,
+                                field_prefix.to_string().to_snake_case(),
+                                field_ident
+                            )
+                        } else {
+                            format!("{}::deserialize_{}", ident, field_ident)
+                        };
 
-                    quote! { #[serde(deserialize_with = #deserialize_fn)] }
-                });
+                        quote! { #[serde(deserialize_with = #deserialize_fn)] }
+                    });
 
             quote! {
                 #(#alias_attrs)*
@@ -97,11 +99,7 @@ pub(crate) fn generate_from_args_initializer(
 ) -> TokenStream {
     let field_ident = field.ident();
 
-    if field
-        .attributes()
-        .find_map(ClapCommand::from_attr)
-        .is_some()
-    {
+    if !field.commands().is_empty() {
         let ty_ident = format_ident!(
             "{}{}",
             field.ty().unwrap_option().ident().unwrap(),
@@ -125,11 +123,7 @@ pub(crate) fn generate_from_args_initializer(
 pub(crate) fn generate_into_args_statement(ident: &Ident, field: &NamedField) -> TokenStream {
     let field_ident = field.ident();
 
-    if field
-        .attributes()
-        .find_map(ClapCommand::from_attr)
-        .is_some()
-    {
+    if !field.commands().is_empty() {
         quote! {
             if let Some(#field_ident) = #field_ident {
                  #ident.extend(#field_ident.into_args());
@@ -142,8 +136,8 @@ pub(crate) fn generate_into_args_statement(ident: &Ident, field: &NamedField) ->
             .unwrap_or_else(|| quote! { #field_ident.to_string() });
 
         match field
-            .attributes()
-            .filter_map(ClapArg::from_attr)
+            .args()
+            .iter()
             .find_map(|arg| arg.flag_name(field_ident))
         {
             Some(flag_name) if field.ty().is("bool") => {
@@ -176,11 +170,7 @@ pub(crate) fn generate_deserialize_fn(
     field: &NamedField,
     field_prefix: Option<&Ident>,
 ) -> TokenStream {
-    let Some(parser) = field
-        .attributes()
-        .filter_map(ClapArg::from_attr)
-        .find_map(|arg| arg.value_parser())
-    else {
+    let Some(parser) = field.args().iter().find_map(ClapArg::value_parser) else {
         return TokenStream::new();
     };
 

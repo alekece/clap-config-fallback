@@ -4,7 +4,7 @@ use syn::{Attribute, Expr, Ident, Type};
 
 use crate::{
     TypeExt,
-    derive::{ConfigFormat, Skippable},
+    derive::{ClapArg, ClapCommand, ConfigFormat, Skippable},
 };
 
 /// Named-field wrapper used by derives that only support struct-style fields.
@@ -71,6 +71,10 @@ pub struct Field {
     /// Defaults to `ToString::to_string()` if not specified.
     #[darling(default)]
     value_format: Option<Expr>,
+    #[darling(skip)]
+    commands: Option<Vec<ClapCommand>>,
+    #[darling(skip)]
+    args: Option<Vec<ClapArg>>,
 }
 
 impl Skippable for Field {
@@ -91,8 +95,8 @@ impl Field {
     }
 
     /// Returns forwarded `#[arg(...)]` and `#[command(...)]` attributes.
-    pub fn attributes(&self) -> impl Iterator<Item = &Attribute> {
-        self.attrs.iter()
+    pub fn attributes(&self) -> &[Attribute] {
+        &self.attrs
     }
 
     /// Returns whether this field is marked as the configuration path field, which indicates that it
@@ -114,7 +118,14 @@ impl Field {
 
     /// Verify that the path field is a `String` or `Option<String>`, as required for determining
     /// the configuration file path.
-    fn autocorrect(self) -> Result<Self, Error> {
+    fn autocorrect(mut self) -> Result<Self, Error> {
+        self.commands = Some(
+            self.attrs
+                .iter()
+                .filter_map(ClapCommand::from_attr)
+                .collect(),
+        );
+        self.args = Some(self.attrs.iter().filter_map(ClapArg::from_attr).collect());
         if self.path && !(self.ty.is("String") || self.ty.is_option_of("String")) {
             return Err(Error::custom(
                 "`#[config(path)]` requires a field of type `String` or `Option<String>`",

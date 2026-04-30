@@ -3,7 +3,7 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    ClapArg, ConfigArgs,
+    ConfigArgs,
     derive::{ConfigFormat, ConfigParser, NamedField},
     generator::{GenerationTarget, helpers},
 };
@@ -181,8 +181,8 @@ impl<T: StructLike> StructGenerator<T> {
     fn generate_config_path_statement(&self, ident: &Ident, field: &NamedField) -> TokenStream {
         let field_ident = field.ident();
         let default_path = field
-            .attributes()
-            .filter_map(ClapArg::from_attr)
+            .args()
+            .iter()
             .find_map(|arg| arg.default_value().map(str::to_owned))
             .map(|default_path| quote! { ::std::option::Option::Some(#default_path) })
             .unwrap_or_else(|| quote! { ::std::option::Option::None });
