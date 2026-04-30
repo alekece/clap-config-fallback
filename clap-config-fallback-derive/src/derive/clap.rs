@@ -6,7 +6,7 @@ use syn::{
 
 use crate::syn_utils::ExprExt;
 
-#[derive(FromMeta)]
+#[derive(Copy, Clone, FromMeta)]
 pub enum ClapCommand {
     Flatten,
     Subcommand,
@@ -19,7 +19,7 @@ impl ClapCommand {
 }
 
 /// Represents a shorthand for `clap` argument attributes.
-#[derive(Debug, FromMeta)]
+#[derive(Clone, FromMeta)]
 pub struct ClapArg {
     /// Optional override for the short flag (e.g., `-d`).
     short: Option<Override<char>>,
@@ -39,6 +39,20 @@ pub struct ClapArg {
     #[allow(dead_code)]
     #[darling(flatten)]
     ignored_args: Result<(), Error>,
+}
+
+impl Default for ClapArg {
+    fn default() -> Self {
+        Self {
+            short: None,
+            long: None,
+            default_value: None,
+            alias: None,
+            aliases: None,
+            value_parser: None,
+            ignored_args: Ok(()),
+        }
+    }
 }
 
 impl ClapArg {

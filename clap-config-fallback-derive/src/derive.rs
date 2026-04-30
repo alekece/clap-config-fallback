@@ -1,3 +1,4 @@
+mod clap;
 mod config_args;
 mod config_format;
 mod config_parser;
@@ -7,6 +8,7 @@ mod skippable;
 mod variant;
 
 pub use self::{
+    clap::{ClapArg, ClapCommand},
     config_args::ConfigArgs,
     config_format::ConfigFormat,
     config_parser::ConfigParser,

@@ -1,6 +1,5 @@
 //! Proc-macro implementation for `clap_config_fallback` derives.
 
-mod clap;
 mod derive;
 mod generator;
 mod syn_utils;
@@ -9,8 +8,7 @@ use darling::FromDeriveInput;
 use syn::{DeriveInput, parse_macro_input};
 
 use self::{
-    clap::{ClapArg, ClapCommand},
-    derive::{ConfigArgs, ConfigParser, ConfigSubcommand},
+    derive::{ClapArg, ConfigArgs, ConfigParser, ConfigSubcommand},
     generator::{EnumGenerator, StructGenerator},
     syn_utils::TypeExt,
 };
