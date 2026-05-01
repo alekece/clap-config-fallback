@@ -15,6 +15,8 @@ pub trait EnumLike {
     fn ident(&self) -> &Ident;
     /// Variant of the enum.
     fn variants(&self) -> &[Variant];
+    /// Tag to use for internally tagged enums.
+    fn tag(&self) -> Option<&str>;
 }
 
 /// Generatates `Opts` and `Config` helper enums and impls for derive inputs.
@@ -25,9 +27,8 @@ pub struct EnumGenerator<T: EnumLike> {
 impl EnumGenerator<ConfigSubcommand> {
     pub fn generate(&self) -> TokenStream {
         let ident = self.input.ident();
-        let tag = self.input.tag();
-        let (opts_ident, opts) = self.generate_enum(tag, GenerationTarget::Opts);
-        let (config_ident, config) = self.generate_enum(tag, GenerationTarget::Config);
+        let (opts_ident, opts) = self.generate_enum(GenerationTarget::Opts);
+        let (config_ident, config) = self.generate_enum(GenerationTarget::Config);
         let deserialize_fns = self.generate_deserialize_fns(GenerationTarget::Config);
         let into_args_fn = self.generate_into_args_fn();
         let from_args_fn = self.generate_from_args_fn(GenerationTarget::Opts.suffix());
@@ -64,7 +65,7 @@ impl<T: EnumLike> EnumGenerator<T> {
         Self { input }
     }
 
-    fn generate_enum(&self, tag: &str, target: GenerationTarget) -> (Ident, TokenStream) {
+    fn generate_enum(&self, target: GenerationTarget) -> (Ident, TokenStream) {
         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
         let variants = self
             .input
@@ -100,11 +101,14 @@ impl<T: EnumLike> EnumGenerator<T> {
                 }
             });
 
+        let tag_attr = self.input.tag().map(|tag| quote! { #[serde(tag = #tag)] });
+
         (
             ident.clone(),
             quote! {
                 #[derive(Debug, ::serde::Serialize, ::serde::Deserialize)]
-                #[serde(tag = #tag, rename_all = "kebab-case")]
+                #[serde(rename_all = "snake_case")]
+                #tag_attr
                 enum #ident {
                     #(#variants,)*
                 }

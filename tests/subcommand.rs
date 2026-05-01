@@ -17,7 +17,6 @@ struct Cli {
 }
 
 #[derive(Debug, Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Run(()),
     Build(BuildCommand),
@@ -42,8 +41,7 @@ struct BuildCommand {
 fn empty_variant_is_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
-    writeln!(file, r#"ref = "run""#)?;
+    writeln!(file, r#"command = "run""#)?;
 
     let cli = Cli::try_parse_with_config_from([
         "bin",
@@ -60,8 +58,7 @@ fn empty_variant_is_loaded_from_config() -> Result<()> {
 fn newtype_variant_is_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[cmd]"#)?;
-    writeln!(file, r#"ref = "build""#)?;
+    writeln!(file, r#"[cmd.build]"#)?;
     writeln!(file, r#"target = "x86_64-unknown-linux-gnu""#)?;
 
     let cli = Cli::try_parse_with_config_from([
@@ -79,8 +76,7 @@ fn newtype_variant_is_loaded_from_config() -> Result<()> {
 fn struct_variant_is_loaded_from_config() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[action]"#)?;
-    writeln!(file, r#"ref = "debug""#)?;
+    writeln!(file, r#"[action.debug]"#)?;
     writeln!(file, r#"verbose = true"#)?;
 
     let cli = Cli::try_parse_with_config_from([
@@ -104,8 +100,7 @@ fn struct_variant_is_loaded_from_config() -> Result<()> {
 fn cli_subcommand_overrides_config_subcommand() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
-    writeln!(file, r#"ref = "build""#)?;
+    writeln!(file, r#"[command.build]"#)?;
     writeln!(file, r#"target = "x86_64-unknown-linux-gnu""#)?;
 
     let cli = Cli::try_parse_with_config_from([
@@ -142,8 +137,7 @@ fn missing_config_tag_returns_error() -> Result<()> {
 fn unknown_config_tag_returns_error() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
-    writeln!(file, r#"ref = "deploy""#)?;
+    writeln!(file, r#"[command.deploy]"#)?;
 
     let result = Cli::try_parse_with_config_from([
         "bin",
@@ -160,8 +154,7 @@ fn unknown_config_tag_returns_error() -> Result<()> {
 fn skipped_config_variant_returns_error() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
-    writeln!(file, r#"[command]"#)?;
-    writeln!(file, r#"ref = "test""#)?;
+    writeln!(file, r#"[command.test]"#)?;
 
     let result = Cli::try_parse_with_config_from([
         "bin",

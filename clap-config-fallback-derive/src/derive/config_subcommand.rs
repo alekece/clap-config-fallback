@@ -54,7 +54,8 @@ pub struct ConfigSubcommand {
     ///
     /// This corresponds to the **tag** in an internally tagged enum representation.
     /// It must be explicitly provided via `#[config(tag = "...")]`.
-    tag: String,
+    #[darling(default)]
+    tag: Option<String>,
 }
 
 impl EnumLike for ConfigSubcommand {
@@ -68,14 +69,13 @@ impl EnumLike for ConfigSubcommand {
             Data::Struct(_) => unreachable!(),
         }
     }
+
+    fn tag(&self) -> Option<&str> {
+        self.tag.as_deref()
+    }
 }
 
 impl ConfigSubcommand {
-    /// Returns the configured tag field name.
-    pub fn tag(&self) -> &str {
-        self.tag.as_str()
-    }
-
     /// Applies post-processing the the parsed enum.
     ///
     /// If `skip_all` is enabled, this will mark all variants as skipped.
