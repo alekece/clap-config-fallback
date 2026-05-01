@@ -1,5 +1,4 @@
 # clap-config-fallback
-> Merge CLI arguments and config files without duplication, while preserving clap's behavior.
 
 Add configuration-file fallback to clap **without losing clap parsing, validation, or error handling**.
 
@@ -7,10 +6,11 @@ Add configuration-file fallback to clap **without losing clap parsing, validatio
 
 `clap` is excellent at parsing CLI arguments and producing high-quality diagnostics.
 
-What it does not do out of the box is *merge a config file with CLI arguments while preserving the
-same parsing and validation contract*.
+What it does not do out of the box is _merge a config file with CLI arguments while preserving the
+same parsing and validation contract_.
 
 Common alternatives often:
+
 - reimplement parsing and drift from clap behavior,
 - duplicate structs (one for CLI, one for config), or
 - validate after parsing in a separate pass.
@@ -56,7 +56,6 @@ struct Cli {
 }
 
 #[derive(Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Serve,
 }
@@ -72,7 +71,7 @@ Example `config.toml`:
 ```toml
 host = "127.0.0.1"
 port = 8080
-command = { ref = "serve" }
+command = "serve"
 ```
 
 ## How it works
@@ -90,7 +89,7 @@ Because the final pass is still clap, you keep clap’s errors and validation be
 
 ## Derives overview
 
-`clap-config-fallback` provides three derives that mirror clap's structure and are designed to be 
+`clap-config-fallback` provides three derives that mirror clap's structure and are designed to be
 used together:
 
 | clap         | clap-config-fallback | Role                          |
@@ -110,25 +109,24 @@ used together:
 
 ## Requirements
 
-Using `ConfigParser` has a few constraints:
+Using `clap-config-fallback` has a few constraints:
+
 - The root type must be a **named struct**.
 - Fields that participate in fallback must be serializable/deserializable.
 - Field values must be representable as CLI argument values.
 - Nested flattened structs must also derive `ConfigArgs`.
-- Subcommands use an **internally tagged representation** in the configuration file.
+- Subcommands use an **externally tagged representation** by default.
 - Subcommands must follow the **canonical structure** (see below).
 
 ## Canonical structure
-
-Subcommands must follow this structure to enable configuration fallback.
 
 `ConfigParser` **cannot be derived on enums**, which is the only intentional incompatibility with
 clap.
 
 Configuration fallback requires resolving the configuration file **before** parsing the command.
 
-With an enum root, the command must be selected first, which makes it impossible to define or access
-a config path beforehand.
+With an enum as root type, the command must be selected first, which makes it impossible to define or
+access a config path beforehand.
 
 Use a root struct that defines the config path and delegates to subcommands:
 
@@ -144,7 +142,6 @@ struct Cli {
 }
 
 #[derive(Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Run,
     Build(BuildCommand),
@@ -162,12 +159,45 @@ struct BuildCommand {
 
 ```
 
+## Subcommand representation
+
+By default, subcommands use an **externally tagged representation** in configuration:
+
+```toml
+command = "serve"
+
+command = { debug = { "verbose" = true } }
+
+[command.build]
+target = "x86_64-unknown-linux-gnu"
+```
+
+Alternatively, you can opt into an **internally tagged representation** using:
+
+```rust
+#[derive(Subcommand, ConfigSubcommand)]
+#[config(tag = "name")]
+enum Command { ... }
+
+```
+
+Resulting to the following configuration:
+
+```toml
+[command]
+name = "build"
+target = "x86_64-unknown-linux-gnu"
+```
+
+> ⚠️ **Note**  
+> The tag field shares the same namespace as variant fields, and may conflict with them.
+
 ## Derive attributes
+
 ### `#[config(path)]`
 
 Marks the field that stores the configuration file path.
 
-- Optional (you may omit it entirely).
 - Must be one of:
   - `String`
   - `Option<String>`
@@ -179,10 +209,11 @@ If no `path` field exists, config fallback is disabled.
 Forces how the config file is parsed for the `#[config(path)]` field.
 
 Supported values:
+
 - `toml`
 - `yaml`
 - `json`
-- `auto` (default; detect by extension)
+- `auto` (**default**) - Detect format by extension
 
 ### `#[config(skip)]`
 
@@ -196,7 +227,7 @@ port: u16,
 
 ### `#[config(skip_all)]`
 
-Disables config fallback for all fields in the struct.
+Disables config fallback for all fields.
 
 ```rust
 #[config(skip_all)]
@@ -217,14 +248,19 @@ duration: Duration,
 
 Defines the field used to select the active subcommand in the configuration.
 
-**Required for `ConfigSubcommand`**
+```rust
+#[derive(Subcommand, ConfigSubcommand)]
+#[config(tag = "name")]
+enum Command { ... }
+```
 
 ### `#[config(alias = "...", aliases = ["...", "..."])]`
 
-Adds a configuration-only alias for a field using `#[command(...)]`.
+Adds configuration-only aliases for fields using `#[command(...)]`.
 
-This is useful for nested config sections, especially because clap does not support aliases on
-`#[command(...)]` fields.
+While clap flattens these fields in the CLI, they still appear as structured keys in configuration
+files. Aliases allow alternative section names to be accepted during configuration deserialization,
+without changing CLI behavior.
 
 ```rust
 #[derive(Parser, ConfigParser)]
@@ -234,16 +270,16 @@ struct Cli {
     command: Command,
 }
 ```
- 
+
 ## Attribute reference
 
-| Attribute | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose |
-|---|:---:|:---:|:---:|---|
-| `#[config(path)]` | ✅ | ❌ | ❌ | Marks the config file path field |
-| `#[config(format = "...")]` | ✅ | ❌ | ❌ | Forces config format: `toml`, `yaml`, `json`, or `auto` |
-| `#[config(skip)]` | ✅ | ✅ | ✅ | Excludes a field or variant from config generation |
-| `#[config(skip_all)]` | ✅ | ✅ | ✅ | Excludes all fields or variants from config generation |
-| `#[config(value_format = ...)]` | ✅ | ✅ | ✅ | Converts a merged value back into a CLI-compatible string |
-| `#[config(tag = "...")]` | ❌ | ❌ | ✅ | Defines the config field used to select a subcommand variant |
-| `#[config(alias = "...")]` | ✅ | ✅ | ✅ | Adds one configuration-only alias for a `#[command(...)]` field |
-| `#[config(aliases = ["...", "..."])]` | ✅ | ✅ | ✅ | Adds multiple configuration-only aliases for a `#[command(...)]` field |
+| Attribute                             | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose                                                                |
+| ------------------------------------- | :------------: | :----------: | :----------------: | ---------------------------------------------------------------------- |
+| `#[config(path)]`                     |       ✅       |      ❌      |         ❌         | Marks the config file path field                                       |
+| `#[config(format = "...")]`           |       ✅       |      ❌      |         ❌         | Forces config format: `toml`, `yaml`, `json`, or `auto`                |
+| `#[config(skip)]`                     |       ✅       |      ✅      |         ✅         | Excludes a field or variant from config generation                     |
+| `#[config(skip_all)]`                 |       ✅       |      ✅      |         ✅         | Excludes all fields or variants from config generation                 |
+| `#[config(value_format = ...)]`       |       ✅       |      ✅      |         ✅         | Converts a merged value back into a CLI-compatible string              |
+| `#[config(tag = "...")]`              |       ❌       |      ❌      |         ✅         | Enables internally tagged subcommand representation                    |
+| `#[config(alias = "...")]`            |       ✅       |      ✅      |         ✅         | Adds one configuration-only alias for a `#[command(...)]` field        |
+| `#[config(aliases = ["...", "..."])]` |       ✅       |      ✅      |         ✅         | Adds multiple configuration-only aliases for a `#[command(...)]` field |
