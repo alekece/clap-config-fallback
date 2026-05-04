@@ -1,3 +1,6 @@
+use proc_macro2::Ident;
+use quote::format_ident;
+
 use crate::derive::Skippable;
 
 /// Target for code generation.
@@ -16,6 +19,10 @@ impl GenerationTarget {
             Self::Opts => "Opts",
             Self::Config => "Config",
         }
+    }
+
+    pub fn suffix_ident(&self) -> Ident {
+        format_ident!("{}", self.suffix())
     }
 
     /// Wheither the given value should be skipped during generation for this target.

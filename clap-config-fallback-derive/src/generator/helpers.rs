@@ -14,11 +14,8 @@ pub(crate) fn generate_field_definition(
     let field_ident = field.ident();
 
     if !field.commands().is_empty() {
-        let field_ty = format_ident!(
-            "{}{}",
-            field.ty().unwrap_option().ident().unwrap(),
-            target.suffix()
-        );
+        let field_ty = field.ty();
+        let target_ident = target.suffix_ident();
 
         return match target {
             GenerationTarget::Opts => {
@@ -27,7 +24,7 @@ pub(crate) fn generate_field_definition(
                 quote! {
                     #(#field_attrs)*
                     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                    #field_ident: Option<#field_ty>
+                    #field_ident: Option<<#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident>
                 }
             }
             GenerationTarget::Config => {
@@ -39,7 +36,7 @@ pub(crate) fn generate_field_definition(
                 quote! {
                     #(#alias_attrs)*
                     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                    #field_ident: ::std::option::Option<#field_ty>
+                    #field_ident: ::std::option::Option<<#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident>
                 }
             }
         };
@@ -101,21 +98,15 @@ pub(crate) fn generate_field_definition(
     }
 }
 
-pub(crate) fn generate_from_args_initializer(
-    field: &NamedField,
-    field_suffix: &str,
-) -> TokenStream {
+pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream {
     let field_ident = field.ident();
 
     if !field.commands().is_empty() {
-        let ty_ident = format_ident!(
-            "{}{}",
-            field.ty().unwrap_option().ident().unwrap(),
-            field_suffix
-        );
+        let field_ty = field.ty();
+        let target_ident = GenerationTarget::Opts.suffix_ident();
 
         quote! {
-            #field_ident: #ty_ident::from_args(&args)
+            #field_ident: <#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident::from_args(&args)
         }
     } else if field.ty().is("bool") {
         quote! {

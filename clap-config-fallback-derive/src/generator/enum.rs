@@ -4,7 +4,6 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    TypeExt,
     derive::{ConfigSubcommand, Variant, VariantShape},
     generator::{GenerationTarget, helpers},
 };
@@ -29,9 +28,9 @@ impl EnumGenerator<ConfigSubcommand> {
         let ident = self.input.ident();
         let (opts_ident, opts) = self.generate_enum(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_enum(GenerationTarget::Config);
-        let deserialize_fns = self.generate_deserialize_fns(GenerationTarget::Config);
+        let deserialize_fns = self.generate_deserialize_fns();
         let into_args_fn = self.generate_into_args_fn();
-        let from_args_fn = self.generate_from_args_fn(GenerationTarget::Opts.suffix());
+        let from_args_fn = self.generate_from_args_fn();
 
         quote! {
             #[derive(::clap::Subcommand)]
@@ -51,7 +50,7 @@ impl EnumGenerator<ConfigSubcommand> {
                 #from_args_fn
             }
 
-            impl ::clap_config_fallback::ConfigSubcommand for #ident {
+            impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
             }
@@ -78,9 +77,9 @@ impl<T: EnumLike> EnumGenerator<T> {
                 match variant.shape() {
                     VariantShape::Unit => quote! { #variant_ident },
                     VariantShape::Newtype(ty) => {
-                        let field_ty = format_ident!("{}{}", ty.ident().unwrap(), target.suffix());
+                        let target_ident = target.suffix_ident();
 
-                        quote! { #variant_ident(#field_ty) }
+                        quote! { #variant_ident(<#ty as ::clap_config_fallback::ConfigFallback>::#target_ident) }
                     }
                     VariantShape::Struct(fields) => {
                         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
@@ -109,7 +108,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                 #[derive(Debug, ::serde::Serialize, ::serde::Deserialize)]
                 #[serde(rename_all = "snake_case")]
                 #tag_attr
-                enum #ident {
+                pub enum #ident {
                     #(#variants,)*
                 }
             },
@@ -169,7 +168,7 @@ impl<T: EnumLike> EnumGenerator<T> {
         }
     }
 
-    fn generate_from_args_fn(&self, field_suffix: &str) -> TokenStream {
+    fn generate_from_args_fn(&self) -> TokenStream {
         let variant_matches = self.input.variants().iter().map(|variant| {
             let ident = variant.ident();
             let formatted_variant = ident.to_string().to_kebab_case();
@@ -180,17 +179,16 @@ impl<T: EnumLike> EnumGenerator<T> {
                         ::std::option::Option::Some(Self::#ident)
                 },
                 VariantShape::Newtype(ty) => {
-                    let field_ty = format_ident!("{}{}", ty.ident().unwrap(), field_suffix);
+                    let target_ident = GenerationTarget::Opts.suffix_ident();
 
                     quote! {
                         ::std::option::Option::Some((#formatted_variant, args)) =>
-                            #field_ty::from_args(args).map(Self::#ident)
+                            <#ty as ::clap_config_fallback::ConfigFallback>::#target_ident::from_args(args).map(Self::#ident)
                     }
                 }
                 VariantShape::Struct(fields) => {
-                    let field_assignments = fields
-                        .iter()
-                        .map(|field| helpers::generate_from_args_initializer(field, field_suffix));
+                    let field_assignments =
+                        fields.iter().map(helpers::generate_from_args_initializer);
 
                     quote! {
                         ::std::option::Option::Some((#formatted_variant, args)) =>
@@ -210,19 +208,19 @@ impl<T: EnumLike> EnumGenerator<T> {
         }
     }
 
-    fn generate_deserialize_fns(&self, target: GenerationTarget) -> TokenStream {
+    fn generate_deserialize_fns(&self) -> TokenStream {
         let deserialize_fns = self
             .input
             .variants()
             .iter()
-            .filter(|variant| !target.should_skip(*variant))
+            .filter(|variant| !GenerationTarget::Config.should_skip(*variant))
             .filter_map(|variant| {
                 variant
                     .as_struct()
                     .map(|fields| fields.into_iter().map(|field| (variant.ident(), field)))
             })
             .flatten()
-            .filter(|(_, field)| !target.should_skip(field))
+            .filter(|(_, field)| !GenerationTarget::Config.should_skip(field))
             .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(ident)));
 
         quote! {

@@ -9,7 +9,7 @@
 
 use std::{ffi::OsString, iter, path::PathBuf};
 
-use clap::{ArgMatches, Args, CommandFactory, Error, Parser, Subcommand, error::ErrorKind};
+use clap::{ArgMatches, CommandFactory, Error, Parser, error::ErrorKind};
 use figment::{Figment, providers::*};
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -65,22 +65,10 @@ pub trait ConfigSource {
     }
 }
 
-/// Companion trait for clap [`Args`] types participating in config fallback.
-///
-/// This trait is implemented by `#[derive(ConfigArgs)]`.
-pub trait ConfigArgs: Sized + Args {
+/// Defines the associated types for config fallback parsing.
+pub trait ConfigFallback {
     /// Intermediate optional representation used during merge.
-    type Opts: Args + Serialize + DeserializeOwned + IntoArgs + FromArgs;
-    /// Config-only representation loaded from file.
-    type Config: Serialize + DeserializeOwned;
-}
-
-/// Companion trait for clap [`Subcommand`] types participating in config fallback.
-///
-/// This trait is implemented by `#[derive(ConfigSubcommand)]`.
-pub trait ConfigSubcommand: Sized + Subcommand {
-    /// Intermediate optional representation used during merge.
-    type Opts: Subcommand + Serialize + DeserializeOwned + IntoArgs + FromArgs;
+    type Opts: Serialize + DeserializeOwned + IntoArgs + FromArgs;
     /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
 }
@@ -89,12 +77,10 @@ pub trait ConfigSubcommand: Sized + Subcommand {
 ///
 /// Deriving `ConfigParser` generates an internal optional `Opts` type and a config-deserialization
 /// type, then wires them into this trait.
-pub trait ConfigParser: Sized + Parser {
-    /// Intermediate optional representation used for CLI/config merge.
-    type Opts: Parser + Serialize + DeserializeOwned + IntoArgs + FromArgs + Default + ConfigSource;
-    /// Config-only representation loaded from file.
-    type Config: Serialize + DeserializeOwned;
-
+pub trait ConfigParser: Sized + Parser + ConfigFallback
+where
+    Self::Opts: Parser + Default + ConfigSource,
+{
     /// Equivalent to [`Parser::parse`], but with config fallback.
     fn parse_with_config() -> Self {
         Self::parse_with_config_from(std::env::args_os())

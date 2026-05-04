@@ -27,8 +27,8 @@ impl StructGenerator<ConfigParser> {
         let (opts_ident, opts) = self.generate_struct(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_struct(GenerationTarget::Config);
         let into_args_fn = self.generate_into_args_fn();
-        let from_args_fn = self.generate_from_args_fn(GenerationTarget::Opts.suffix());
-        let deserialize_fns = self.generate_deserialize_fns(GenerationTarget::Config);
+        let from_args_fn = self.generate_from_args_fn();
+        let deserialize_fns = self.generate_deserialize_fns();
         let config_path_fn = self.generate_config_path_fn();
         let config_format_fn = self.generate_config_format_fn();
 
@@ -55,9 +55,13 @@ impl StructGenerator<ConfigParser> {
                 #config_format_fn
             }
 
-            impl ::clap_config_fallback::ConfigParser for #ident {
+            impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
+            }
+
+            impl ::clap_config_fallback::ConfigParser for #ident {
+
             }
         }
     }
@@ -69,8 +73,8 @@ impl StructGenerator<ConfigArgs> {
         let (opts_ident, opts) = self.generate_struct(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_struct(GenerationTarget::Config);
         let into_args_fn = self.generate_into_args_fn();
-        let from_args_fn = self.generate_from_args_fn(GenerationTarget::Opts.suffix());
-        let deserialize_fns = self.generate_deserialize_fns(GenerationTarget::Config);
+        let from_args_fn = self.generate_from_args_fn();
+        let deserialize_fns = self.generate_deserialize_fns();
 
         quote! {
             #config
@@ -90,7 +94,7 @@ impl StructGenerator<ConfigArgs> {
                 #from_args_fn
             }
 
-            impl ::clap_config_fallback::ConfigArgs for #ident {
+            impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
             }
@@ -117,19 +121,19 @@ impl<T: StructLike> StructGenerator<T> {
             ident.clone(),
             quote! {
                 #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
-                struct #ident {
+                pub struct #ident {
                     #(#fields),*
                 }
             },
         )
     }
 
-    fn generate_from_args_fn(&self, field_suffix: &str) -> TokenStream {
+    fn generate_from_args_fn(&self) -> TokenStream {
         let field_assignments = self
             .input
             .fields()
             .iter()
-            .map(|field| helpers::generate_from_args_initializer(field, field_suffix));
+            .map(helpers::generate_from_args_initializer);
 
         quote! {
             fn from_args(args: &::clap::ArgMatches) -> Option<Self> {
@@ -215,12 +219,12 @@ impl<T: StructLike> StructGenerator<T> {
         })
     }
 
-    fn generate_deserialize_fns(&self, target: GenerationTarget) -> TokenStream {
+    fn generate_deserialize_fns(&self) -> TokenStream {
         let deserialize_fns = self
             .input
             .fields()
             .iter()
-            .filter(|field| !target.should_skip(*field))
+            .filter(|field| !GenerationTarget::Config.should_skip(*field))
             .map(|field| helpers::generate_deserialize_fn(field, None));
 
         quote! {

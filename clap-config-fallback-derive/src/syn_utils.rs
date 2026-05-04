@@ -2,18 +2,12 @@ use syn::{Expr, GenericArgument, Ident, PathArguments, Type, parse_quote};
 
 /// Extension trait for `syn::Type`.
 pub trait TypeExt {
-    /// Extracts the identifier from a type.
-    fn ident(&self) -> Option<&Ident>;
     /// Checks if the type is an `Option` of a specific identifier.
     /// Checks if the type is a specific identifier.
     fn is(&self, ident: &str) -> bool;
 
     /// Checks if the type is an `Option` of a specific identifier.
     fn is_option_of(&self, ident: &str) -> bool;
-
-    /// Attempts to unwrap an `Option` type, returning the inner type if it is an `Option`,
-    /// or `None` otherwise.
-    fn unwrap_option(&self) -> &Self;
 
     /// Converts the type to an `Option` type if it is not already an `Option`.
     fn to_option(&self) -> Type;
@@ -22,13 +16,6 @@ pub trait TypeExt {
 }
 
 impl TypeExt for Type {
-    fn ident(&self) -> Option<&Ident> {
-        match self {
-            Type::Path(type_path) => type_path.path.segments.last().map(|segment| &segment.ident),
-            _ => None,
-        }
-    }
-
     fn is_unit(&self) -> bool {
         matches!(self, Type::Tuple(tuple) if tuple.elems.is_empty())
     }
@@ -54,19 +41,6 @@ impl TypeExt for Type {
             ty.is(ident)
         } else {
             false
-        }
-    }
-
-    fn unwrap_option(&self) -> &Self {
-        if let Type::Path(type_path) = self
-            && let Some(segment) = type_path.path.segments.last()
-            && segment.ident == "Option"
-            && let PathArguments::AngleBracketed(args) = &segment.arguments
-            && let Some(GenericArgument::Type(ty)) = args.args.first()
-        {
-            ty
-        } else {
-            self
         }
     }
 
