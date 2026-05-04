@@ -6,7 +6,7 @@ use eyre::Result;
 use tempfile::NamedTempFile;
 
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
-struct NestedCli {
+struct Cli {
     #[command(flatten)]
     #[config(alias = "service")]
     logging: LoggingArgs,
@@ -34,7 +34,7 @@ fn nested_fields_can_be_loaded_from_config() -> Result<()> {
     writeln!(file, r#"level = "warn""#)?;
     writeln!(file, "interval_secs = 30")?;
 
-    let cli = NestedCli::try_parse_with_config_from([
+    let cli = Cli::try_parse_with_config_from([
         "bin",
         "--config-path",
         &file.path().display().to_string(),
@@ -56,7 +56,7 @@ fn nested_cli_values_override_nested_config() -> Result<()> {
     writeln!(file, r#"level = "warn""#)?;
     writeln!(file, "interval_secs = 30")?;
 
-    let cli = NestedCli::try_parse_with_config_from([
+    let cli = Cli::try_parse_with_config_from([
         "bin",
         "--profile",
         "dev",
