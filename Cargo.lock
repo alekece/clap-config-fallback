@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "clap-config-fallback"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "assert_matches",
  "clap",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "clap-config-fallback-derive"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "darling",
  "derive_more",
