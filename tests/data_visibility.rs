@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
     #[command(flatten)]
-    args: arg::CliArgs,
+    args: Option<arg::CliArgs>,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
@@ -46,8 +46,10 @@ fn nested_fields_can_be_loaded_from_config() -> Result<()> {
         &file.path().display().to_string(),
     ])?;
 
-    assert_eq!(cli.args.level, "warn");
-    assert!(cli.args.debug);
+    let args = cli.args.unwrap();
+
+    assert_eq!(args.level, "warn");
+    assert!(args.debug);
 
     Ok(())
 }

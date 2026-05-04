@@ -14,7 +14,7 @@ pub(crate) fn generate_field_definition(
     let field_ident = field.ident();
 
     if !field.commands().is_empty() {
-        let field_ty = field.ty();
+        let field_ty = field.ty().unwrap_option();
         let target_ident = target.suffix_ident();
 
         return match target {
@@ -102,7 +102,7 @@ pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream 
     let field_ident = field.ident();
 
     if !field.commands().is_empty() {
-        let field_ty = field.ty();
+        let field_ty = field.ty().unwrap_option();
         let target_ident = GenerationTarget::Opts.suffix_ident();
 
         quote! {

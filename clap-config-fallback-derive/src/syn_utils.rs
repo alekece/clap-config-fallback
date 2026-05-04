@@ -12,6 +12,9 @@ pub trait TypeExt {
     /// Converts the type to an `Option` type if it is not already an `Option`.
     fn to_option(&self) -> Type;
 
+    /// Unwraps an `Option` type to get the inner type, or returns the type itself if it is not an `Option`.
+    fn unwrap_option(&self) -> Type;
+
     fn is_unit(&self) -> bool;
 }
 
@@ -49,6 +52,19 @@ impl TypeExt for Type {
             self.clone()
         } else {
             parse_quote! { Option<#self> }
+        }
+    }
+
+    fn unwrap_option(&self) -> Type {
+        if let Type::Path(type_path) = self
+            && let Some(segment) = type_path.path.segments.last()
+            && segment.ident == "Option"
+            && let PathArguments::AngleBracketed(args) = &segment.arguments
+            && let Some(GenericArgument::Type(ty)) = args.args.first()
+        {
+            ty.clone()
+        } else {
+            self.clone()
         }
     }
 }
