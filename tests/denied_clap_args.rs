@@ -30,7 +30,7 @@ struct Cli {
 struct UserArgs {
     #[arg(long, default_value_t = 42u16)]
     age: u16,
-    #[arg(long, env = "TEST_SIZE")]
+    #[arg(long, env = "TEST_SIZE", default_value = "100")]
     size: Option<u32>,
 }
 
@@ -124,6 +124,15 @@ fn denied_requires_is_enforced_on_final_parse() -> Result<()> {
         .expect_err("missing requires arguments should fail");
 
     assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+
+    Ok(())
+}
+
+#[test]
+fn denied_default_is_enforced_on_final_parse() -> Result<()> {
+    let cli = Cli::try_parse_with_config_from(["bin", "--value", "aaa"])?;
+
+    assert_eq!(cli.mode, "default-from-clap");
 
     Ok(())
 }

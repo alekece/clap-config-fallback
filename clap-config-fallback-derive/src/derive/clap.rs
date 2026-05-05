@@ -25,8 +25,6 @@ pub struct ClapArg {
     short: Option<Override<char>>,
     /// Optional override for the long flag (e.g., `--debug`).
     long: Option<Override<String>>,
-    /// Optional default value for the argument.
-    default_value: Option<String>,
     /// Optional alias for the argument, allowing it to be referenced by multiple names.
     alias: Option<LitStr>,
     /// Optional aliases for the argument, allowing it to be referenced by multiple names.
@@ -46,7 +44,6 @@ impl Default for ClapArg {
         Self {
             short: None,
             long: None,
-            default_value: None,
             alias: None,
             aliases: None,
             value_parser: None,
@@ -60,11 +57,6 @@ impl ClapArg {
     /// meta.
     pub fn from_attr(attr: &Attribute) -> Option<Self> {
         Self::from_meta(&attr.meta).ok()
-    }
-
-    /// Returns the default value for this argument, if specified.
-    pub fn default_value(&self) -> Option<&str> {
-        self.default_value.as_deref()
     }
 
     /// Returns a vector of all aliases for this argument, combining both `alias` and `aliases` fields.
@@ -110,9 +102,7 @@ impl ClapArg {
 
     /// Sanitizes the given attribute by removing any sub-attributes that are not relevant for
     /// optional argument.
-    pub fn sanitize(attr: Attribute) -> Attribute {
-        const DENIED_ARGS: [&str; 5] = ["default", "require", "conflicts", "exclusive", "env"];
-
+    pub fn sanitize(attr: Attribute, denied_args: &[&str]) -> Attribute {
         if attr.path().is_ident("arg")
             && let Meta::List(list) = &attr.meta
             && let Some(args) = list
@@ -125,7 +115,7 @@ impl ClapArg {
                     !expr.ident().is_none_or(|ident| {
                         let arg = ident.to_string();
 
-                        DENIED_ARGS
+                        denied_args
                             .iter()
                             .any(|denied_arg| arg.starts_with(denied_arg))
                     })

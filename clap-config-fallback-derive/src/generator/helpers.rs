@@ -49,7 +49,17 @@ pub(crate) fn generate_field_definition(
     let field_ty = field.ty().to_option();
     let field_attrs = match target {
         GenerationTarget::Opts => {
-            let sanitized_attrs = field.attributes().iter().cloned().map(ClapArg::sanitize);
+            let sanitized_attrs = field.attributes().iter().cloned().map(|attr| {
+                ClapArg::sanitize(
+                    attr,
+                    if field.is_path() {
+                        &["require", "conflicts", "exclusive"]
+                    } else {
+                        &["default", "require", "conflicts", "exclusive", "env"]
+                    },
+                )
+            });
+
             let bool_attr = field
                 .ty()
                 .is("bool")

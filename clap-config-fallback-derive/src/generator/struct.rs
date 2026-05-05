@@ -191,28 +191,14 @@ impl<T: StructLike> StructGenerator<T> {
             .input
             .fields()
             .iter()
-            .find(|field| field.is_path())
-            .map(|field| self.generate_config_path_statement(&ident, field))
+            .find_map(|field| field.is_path().then_some(field.ident()))
+            .map(|field_ident| quote! { #ident.#field_ident.as_deref() })
             .unwrap_or_else(|| quote! { ::std::option::Option::None });
 
         quote! {
             fn config_path(&self) -> ::std::option::Option<&str> {
                 #config_path
             }
-        }
-    }
-
-    fn generate_config_path_statement(&self, ident: &Ident, field: &NamedField) -> TokenStream {
-        let field_ident = field.ident();
-        let default_path = field
-            .args()
-            .iter()
-            .find_map(|arg| arg.default_value().map(str::to_owned))
-            .map(|default_path| quote! { ::std::option::Option::Some(#default_path) })
-            .unwrap_or_else(|| quote! { ::std::option::Option::None });
-
-        quote! {
-            #ident.#field_ident.as_deref().or(#default_path)
         }
     }
 
