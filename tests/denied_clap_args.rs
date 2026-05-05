@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use clap::{Parser, error::ErrorKind};
-use clap_config_fallback::ConfigParser;
+use clap::{Args, Parser, error::ErrorKind};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
 use eyre::Result;
 use tempfile::NamedTempFile;
 
@@ -17,13 +17,43 @@ struct Cli {
     right: bool,
     #[arg(long, requires = "username")]
     token: Option<String>,
-    #[arg(long)]
+    #[arg(long, requires_all = ["age", "size"])]
     username: Option<String>,
-    #[arg(long, default_value_t = 42u16)]
-    age: u16,
+    #[command(flatten)]
+    user: UserArgs,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
+}
+
+#[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
+struct UserArgs {
+    #[arg(long, default_value_t = 42u16)]
+    age: u16,
+    #[arg(long, env = "TEST_SIZE")]
+    size: Option<u32>,
+}
+
+#[test]
+fn denied_env_fallback_can_be_satisfied_by_config() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, r#"size = 42"#)?;
+
+    unsafe { std::env::set_var("TEST_SIZE", "14") };
+
+    let cli = Cli::try_parse_with_config_from([
+        "bin",
+        "--value",
+        "from-cli",
+        "--config-path",
+        &file.path().display().to_string(),
+    ])?;
+
+    assert_eq!(cli.value, "from-cli");
+    assert_eq!(cli.user.size, Some(42));
+
+    Ok(())
 }
 
 #[test]
@@ -33,6 +63,7 @@ fn denied_required_arg_can_be_satisfied_by_config() -> Result<()> {
     writeln!(file, r#"value = "configured""#)?;
     writeln!(file, r#"token = "abc""#)?;
     writeln!(file, r#"username = "user""#)?;
+    writeln!(file, r#"age = 30"#)?;
 
     let cli = Cli::try_parse_with_config_from([
         "bin",

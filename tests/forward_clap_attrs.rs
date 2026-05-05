@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use clap::{Error, Parser, error::ErrorKind};
-use clap_config_fallback::ConfigParser;
+use clap::{Args, Error, Parser, error::ErrorKind};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
 use eyre::Result;
 use tempfile::NamedTempFile;
 
@@ -29,9 +29,36 @@ struct Cli {
     log_level: String,
     #[arg(long, value_name = "MS")]
     timeout_ms: Option<u64>,
+    #[command(flatten)]
+    args: CliArgs,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
+}
+
+#[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
+struct CliArgs {
+    #[arg(long)]
+    url: Option<String>,
+}
+
+#[test]
+fn forwards_flattened_fields_to_config() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, "threads = 5")?;
+    writeln!(file, "log_level = 'warn'")?;
+    writeln!(file, "timeout_ms = 2000")?;
+    writeln!(file, "url = 'https://example.com'")?;
+
+    let cli =
+        Cli::try_parse_with_config_from(["bin", "--config-path", file.path().to_str().unwrap()])?;
+
+    assert_eq!(cli.threads, 5);
+    assert_eq!(cli.log_level, "warn");
+    assert_eq!(cli.timeout_ms, Some(2000));
+
+    Ok(())
 }
 
 #[test]

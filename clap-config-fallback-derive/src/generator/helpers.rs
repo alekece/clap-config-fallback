@@ -16,29 +16,33 @@ pub(crate) fn generate_field_definition(
     if !field.commands().is_empty() {
         let field_ty = field.ty().unwrap_option();
         let target_ident = target.suffix_ident();
-
-        return match target {
+        let flatten_attr = field.flatten().then(|| quote! { #[serde(flatten)] });
+        let field_attrs = match target {
             GenerationTarget::Opts => {
-                let field_attrs = field.attributes();
+                let attrs = field.attributes().iter().map(|attr| quote! { #attr });
 
                 quote! {
-                    #(#field_attrs)*
-                    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                    #field_ident: Option<<#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident>
+                    #(#attrs)*
                 }
             }
             GenerationTarget::Config => {
-                let alias_attrs = field
+                let aliases = field
                     .aliases()
                     .into_iter()
                     .map(|alias| quote! { #[serde(alias = #alias)] });
 
                 quote! {
-                    #(#alias_attrs)*
-                    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-                    #field_ident: ::std::option::Option<<#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident>
+                    #(#aliases)*
                 }
             }
+        };
+
+        return quote! {
+            #field_attrs
+            #flatten_attr
+            #[serde(default)]
+            #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+            #field_ident: Option<<#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident>
         };
     }
 
@@ -86,13 +90,13 @@ pub(crate) fn generate_field_definition(
             quote! {
                 #(#alias_attrs)*
                 #deserialize_attr
-                #[serde(default)]
             }
         }
     };
 
     quote! {
         #field_attrs
+        #[serde(default)]
         #[serde(skip_serializing_if = "::std::option::Option::is_none")]
         #field_ident: #field_ty
     }

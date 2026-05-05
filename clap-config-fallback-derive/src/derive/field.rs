@@ -75,6 +75,8 @@ pub struct Field {
     alias: Option<LitStr>,
     #[darling(default)]
     aliases: Option<Vec<LitStr>>,
+    #[darling(default)]
+    no_flatten: bool,
     #[darling(skip)]
     commands: Option<Vec<ClapCommand>>,
     #[darling(skip)]
@@ -129,6 +131,10 @@ impl Field {
             .collect()
     }
 
+    pub fn flatten(&self) -> bool {
+        !self.no_flatten && self.commands().contains(&ClapCommand::Flatten)
+    }
+
     pub fn commands(&self) -> &[ClapCommand] {
         self.commands.as_ref().unwrap()
     }
@@ -150,12 +156,17 @@ impl Field {
         );
         self.args = Some(self.attrs.iter().filter_map(ClapArg::from_attr).collect());
 
-        if let Some(_) = self.alias
-            && self.commands().is_empty()
-        {
+        if !self.aliases().is_empty() && self.commands().is_empty() {
             error.push(
-                Error::custom(r#"#[config(alias = "...")] can only be used on fields with `#[command(...)]` attributes"#)
-                    .with_span(&self.ident)
+                    Error::custom(r#"#[config(alias, aliases)] can only be used on fields with `#[command]` attributes"#)
+                        .with_span(&self.ident)
+                );
+        }
+
+        if !self.aliases().is_empty() && self.flatten() {
+            error.push(
+                Error::custom(r#"#[config(alias, aliases)] can only used on non-flatten fields"#)
+                    .with_span(&self.ident),
             );
         }
 

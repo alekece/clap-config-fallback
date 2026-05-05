@@ -8,6 +8,7 @@ use tempfile::NamedTempFile;
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
     #[command(flatten)]
+    #[config(no_flatten)]
     args: Option<arg::CliArgs>,
     #[arg(long)]
     #[config(path, format = "toml")]
