@@ -115,6 +115,9 @@ Using `clap-config-fallback` has a few constraints:
 - Fields that participate in fallback must be serializable/deserializable.
 - Field values must be representable as CLI argument values.
 - Nested flattened structs must also derive `ConfigArgs`.
+- `#[command(flatten)]` only applies to CLI parsing.
+  Configuration is **not flattened by default** and preserves the struct hierarchy.
+  Use `#[config(flatten)]` if you want flattened behavior in configuration as well.
 - Subcommands use an **externally tagged representation** by default.
 - Subcommands must follow the **canonical structure** (see below).
 
@@ -259,7 +262,8 @@ enum Command { ... }
 Adds configuration-only aliases for fields using `#[command(...)]`.
 
 While clap flattens these fields in the CLI, they still appear as structured keys in configuration
-files. Aliases allow alternative section names to be accepted during configuration deserialization,
+files. Configuration is **not flattened by default**, even when using `#[command(flatten)]`.
+Aliases allow alternative section names to be accepted during configuration deserialization,
 without changing CLI behavior.
 
 ```rust
