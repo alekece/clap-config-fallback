@@ -34,7 +34,7 @@ pub mod arg {
 }
 
 #[test]
-fn nested_fields_can_be_loaded_from_config() -> Result<()> {
+fn module_does_not_break_proc_macro_hygiene() -> Result<()> {
     let mut file = NamedTempFile::new()?;
 
     writeln!(file, "[args]")?;
