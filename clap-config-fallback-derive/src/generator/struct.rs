@@ -3,9 +3,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    derive::{ConfigFormat, ConfigParser, NamedField},
-    generator::{helpers, GenerationTarget},
     ConfigArgs,
+    derive::{ConfigFormat, ConfigParser, NamedField},
+    generator::{GenerationTarget, helpers},
 };
 
 /// Common interface for parsed derive input that behave like structs.

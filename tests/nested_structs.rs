@@ -27,8 +27,7 @@ struct LoggingArgs {
 }
 
 #[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
-struct EmptyArgs {
-}
+struct EmptyArgs {}
 
 #[test]
 fn nested_fields_can_be_loaded_from_config() -> Result<()> {
