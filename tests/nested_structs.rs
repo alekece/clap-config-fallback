@@ -8,6 +8,8 @@ use tempfile::NamedTempFile;
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
     #[command(flatten)]
+    empty: EmptyArgs,
+    #[command(flatten)]
     logging: LoggingArgs,
     #[arg(long)]
     profile: String,
@@ -22,6 +24,10 @@ struct LoggingArgs {
     level: String,
     #[arg(long)]
     interval_secs: u16,
+}
+
+#[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
+struct EmptyArgs {
 }
 
 #[test]

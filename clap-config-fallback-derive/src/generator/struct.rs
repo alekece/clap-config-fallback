@@ -3,9 +3,9 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    ConfigArgs,
     derive::{ConfigFormat, ConfigParser, NamedField},
-    generator::{GenerationTarget, helpers},
+    generator::{helpers, GenerationTarget},
+    ConfigArgs,
 };
 
 /// Common interface for parsed derive input that behave like structs.
@@ -129,17 +129,37 @@ impl<T: StructLike> StructGenerator<T> {
     }
 
     fn generate_from_args_fn(&self) -> TokenStream {
-        let field_assignments = self
+        let (field_assignments, field_checks) = self
             .input
             .fields()
             .iter()
-            .map(helpers::generate_from_args_initializer);
+            .map(|field| {
+                let field_ident = field.ident();
+
+                (
+                    helpers::generate_from_args_initializer(field),
+                    quote! { __self.#field_ident.is_none() },
+                )
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+
+        let field_checks = if field_checks.is_empty() {
+            quote! { true }
+        } else {
+            quote! { #(#field_checks)&&* }
+        };
 
         quote! {
             fn from_args(args: &::clap::ArgMatches) -> Option<Self> {
-                Some(Self {
-                    #(#field_assignments),*
-                })
+                let __self = Self {
+                    #(#field_assignments,)*
+                };
+
+                if #field_checks {
+                    None
+                } else {
+                    Some(__self)
+                }
             }
         }
     }

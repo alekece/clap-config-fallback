@@ -27,6 +27,7 @@ enum Command {
         #[config(value_format = humantime::format_duration(timeout).to_string())]
         timeout: Option<Duration>,
     },
+    Empty {},
     #[config(skip)]
     Test,
 }
