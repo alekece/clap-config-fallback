@@ -6,7 +6,7 @@ use syn::{
 
 use crate::syn_utils::ExprExt;
 
-#[derive(Copy, Clone, FromMeta)]
+#[derive(Copy, Clone, PartialEq, Eq, FromMeta)]
 pub enum ClapCommand {
     Flatten,
     Subcommand,
@@ -111,25 +111,7 @@ impl ClapArg {
     /// Sanitizes the given attribute by removing any sub-attributes that are not relevant for
     /// optional argument.
     pub fn sanitize(attr: Attribute) -> Attribute {
-        const DENIED_ARGS: [&str; 17] = [
-            "default_value",
-            "default_values",
-            "default_value_if",
-            "default_value_ifs",
-            "default_value_t",
-            "required",
-            "required_if_eq",
-            "required_if_eq_any",
-            "required_unless_present",
-            "required_unless_present_any",
-            "required_unless_present_all",
-            "requires",
-            "requires_if",
-            "requires_ifs",
-            "conflicts_with",
-            "conflicts_with_all",
-            "exclusive",
-        ];
+        const DENIED_ARGS: [&str; 5] = ["default", "require", "conflicts", "exclusive", "env"];
 
         if attr.path().is_ident("arg")
             && let Meta::List(list) = &attr.meta
@@ -140,9 +122,13 @@ impl ClapArg {
             let sanitized_attrs: Punctuated<Expr, Token![,]> = args
                 .into_iter()
                 .filter(|expr| {
-                    !expr
-                        .ident()
-                        .is_none_or(|ident| DENIED_ARGS.contains(&ident.to_string().as_str()))
+                    !expr.ident().is_none_or(|ident| {
+                        let arg = ident.to_string();
+
+                        DENIED_ARGS
+                            .iter()
+                            .any(|denied_arg| arg.starts_with(denied_arg))
+                    })
                 })
                 .collect();
 
