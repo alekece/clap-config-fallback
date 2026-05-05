@@ -111,6 +111,15 @@ where
     {
         let command = <Self::Opts as CommandFactory>::command();
         let command_name = command.get_name().to_owned();
+        let itr = itr.into_iter().collect::<Vec<_>>();
+
+        for arg in itr.iter().cloned() {
+            // short-circuit to have fully functional help/version output
+            if let Some("--help" | "-h" | "--version" | "-V") = arg.into().as_os_str().to_str() {
+                return Self::try_parse_from(itr);
+            }
+        }
+
         let args = command.try_get_matches_from(itr)?;
         let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
