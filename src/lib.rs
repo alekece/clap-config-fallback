@@ -104,23 +104,23 @@ where
     ///
     /// Merge precedence is **CLI > config**. If no config path is available, behavior matches a
     /// normal clap parse.
-    fn try_parse_with_config_from<I, T>(itr: I) -> Result<Self, Error>
+    fn try_parse_with_config_from<I, T>(args: I) -> Result<Self, Error>
     where
         I: IntoIterator<Item = T>,
         T: Into<OsString> + Clone,
     {
         let command = <Self::Opts as CommandFactory>::command();
         let command_name = command.get_name().to_owned();
-        let itr = itr.into_iter().collect::<Vec<_>>();
+        let args = args.into_iter().collect::<Vec<_>>();
 
-        for arg in itr.iter().cloned() {
+        for arg in args.iter().cloned() {
             // short-circuit to have fully functional help/version output
             if let Some("--help" | "-h" | "--version" | "-V") = arg.into().as_os_str().to_str() {
-                return Self::try_parse_from(itr);
+                return Self::try_parse_from(args);
             }
         }
 
-        let args = command.try_get_matches_from(itr)?;
+        let args = command.try_get_matches_from(args)?;
         let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
         let config = opts.config_path().map(|path| {
