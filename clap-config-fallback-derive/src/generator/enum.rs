@@ -6,6 +6,7 @@ use syn::Ident;
 use crate::{
     derive::{ConfigSubcommand, Variant, VariantShape},
     generator::{GenerationTarget, helpers},
+    syn_utils::IntoTokenStream,
 };
 
 /// Common interface for parsed derive input that behave like enums.
@@ -209,8 +210,7 @@ impl<T: EnumLike> EnumGenerator<T> {
     }
 
     fn generate_deserialize_fns(&self) -> TokenStream {
-        let deserialize_fns = self
-            .input
+        self.input
             .variants()
             .iter()
             .filter(|variant| !GenerationTarget::Config.should_skip(*variant))
@@ -221,10 +221,7 @@ impl<T: EnumLike> EnumGenerator<T> {
             })
             .flatten()
             .filter(|(_, field)| !GenerationTarget::Config.should_skip(field))
-            .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(ident)));
-
-        quote! {
-            #(#deserialize_fns)*
-        }
+            .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(ident)))
+            .into_token_stream()
     }
 }

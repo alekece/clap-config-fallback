@@ -6,6 +6,7 @@ use crate::{
     ConfigArgs,
     derive::{ConfigFormat, ConfigParser, NamedField},
     generator::{GenerationTarget, helpers},
+    syn_utils::IntoTokenStream,
 };
 
 /// Common interface for parsed derive input that behave like structs.
@@ -226,15 +227,11 @@ impl<T: StructLike> StructGenerator<T> {
     }
 
     fn generate_deserialize_fns(&self) -> TokenStream {
-        let deserialize_fns = self
-            .input
+        self.input
             .fields()
             .iter()
             .filter(|field| !GenerationTarget::Config.should_skip(*field))
-            .map(|field| helpers::generate_deserialize_fn(field, None));
-
-        quote! {
-            #(#deserialize_fns)*
-        }
+            .map(|field| helpers::generate_deserialize_fn(field, None))
+            .into_token_stream()
     }
 }

@@ -1,4 +1,22 @@
+use proc_macro2::TokenStream;
+use quote::{ToTokens, quote};
 use syn::{Expr, GenericArgument, Ident, PathArguments, Type, parse_quote};
+
+pub trait IntoTokenStream {
+    fn into_token_stream(self) -> TokenStream;
+}
+
+impl<T, U> IntoTokenStream for T
+where
+    T: Iterator<Item = U>,
+    U: ToTokens,
+{
+    fn into_token_stream(self) -> TokenStream {
+        let tokens = self.map(|item| item.to_token_stream());
+
+        quote! { #(#tokens)* }
+    }
+}
 
 /// Extension trait for `syn::Type`.
 pub trait TypeExt {
