@@ -102,7 +102,7 @@ impl ClapArg {
 
     /// Sanitizes the given attribute by removing any sub-attributes that are not relevant for
     /// optional argument.
-    pub fn sanitize(attr: Attribute, denied_args: &[&str]) -> Attribute {
+    pub fn sanitize(attr: &Attribute, denied_args: &[&str]) -> Attribute {
         if attr.path().is_ident("arg")
             && let Meta::List(list) = &attr.meta
             && let Some(args) = list
@@ -124,7 +124,7 @@ impl ClapArg {
 
             parse_quote!(#[arg(#sanitized_attrs)])
         } else {
-            attr
+            attr.clone()
         }
     }
 }
