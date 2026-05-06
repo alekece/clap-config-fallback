@@ -3,7 +3,9 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::{ClapArg, TypeExt, derive::NamedField, generator::GenerationTarget};
+use crate::{
+    ClapArg, TypeExt, derive::NamedField, generator::GenerationTarget, syn_utils::IntoTokenStream,
+};
 
 pub(crate) fn generate_field_definition(
     ident: &Ident,
@@ -18,23 +20,8 @@ pub(crate) fn generate_field_definition(
         let target_ident = target.suffix_ident();
         let flatten_attr = field.flatten().then(|| quote! { #[serde(flatten)] });
         let field_attrs = match target {
-            GenerationTarget::Opts => {
-                let attrs = field.attributes().iter().map(|attr| quote! { #attr });
-
-                quote! {
-                    #(#attrs)*
-                }
-            }
-            GenerationTarget::Config => {
-                let aliases = field
-                    .aliases()
-                    .into_iter()
-                    .map(|alias| quote! { #[serde(alias = #alias)] });
-
-                quote! {
-                    #(#aliases)*
-                }
-            }
+            GenerationTarget::Opts => field.attributes().iter().into_token_stream(),
+            GenerationTarget::Config => generate_serde_alias_attrs(field),
         };
 
         return quote! {
@@ -49,57 +36,21 @@ pub(crate) fn generate_field_definition(
     let field_ty = field.ty().to_option();
     let field_attrs = match target {
         GenerationTarget::Opts => {
-            let sanitized_attrs = field.attributes().iter().cloned().map(|attr| {
-                ClapArg::sanitize(
-                    attr,
-                    if field.is_path() {
-                        &["require", "conflicts", "exclusive"]
-                    } else {
-                        &["default", "require", "conflicts", "exclusive", "env"]
-                    },
-                )
-            });
-
-            let bool_attr = field
-                .ty()
-                .is("bool")
-                .then(|| quote! { #[arg(action = clap::ArgAction::SetTrue)] });
+            let sanitized_attrs = generate_sanitized_clap_attrs(field);
+            let bool_attr = generate_clap_bool_action_attr(field);
 
             quote! {
-                #(#sanitized_attrs)*
+                #sanitized_attrs
                 #bool_attr
             }
         }
         GenerationTarget::Config => {
-            let alias_attrs = field
-                .args()
-                .iter()
-                .flat_map(ClapArg::aliases)
-                .map(|alias| quote! { #[serde(alias = #alias)] });
-
-            let deserialize_attr =
-                field
-                    .args()
-                    .iter()
-                    .find_map(|arg| arg.value_parser())
-                    .map(|_| {
-                        let deserialize_fn = if let Some(field_prefix) = field_prefix {
-                            format!(
-                                "{}::deserialize_{}_{}",
-                                ident,
-                                field_prefix.to_string().to_snake_case(),
-                                field_ident
-                            )
-                        } else {
-                            format!("{}::deserialize_{}", ident, field_ident)
-                        };
-
-                        quote! { #[serde(deserialize_with = #deserialize_fn)] }
-                    });
+            let alias_attrs = generate_serde_alias_attrs(field);
+            let deserialize_with_attr = generate_deserialize_with_attr(ident, field, field_prefix);
 
             quote! {
-                #(#alias_attrs)*
-                #deserialize_attr
+                #alias_attrs
+                #deserialize_with_attr
             }
         }
     };
@@ -207,5 +158,75 @@ pub(crate) fn generate_deserialize_fn(
 
             s.map(|s| #parser(s.as_str()).map_err(::serde::de::Error::custom)).transpose()
         }
+    }
+}
+
+pub(crate) fn generate_deserialize_with_attr(
+    ident: &Ident,
+    field: &NamedField,
+    field_prefix: Option<&Ident>,
+) -> TokenStream {
+    field
+        .args()
+        .iter()
+        .find_map(|arg| arg.value_parser())
+        .map_or(TokenStream::new(), |_| {
+            let field_ident = field.ident();
+            let deserialize_fn = if let Some(field_prefix) = field_prefix {
+                format!(
+                    "{}::deserialize_{}_{}",
+                    ident,
+                    field_prefix.to_string().to_snake_case(),
+                    field_ident
+                )
+            } else {
+                format!("{}::deserialize_{}", ident, field_ident)
+            };
+
+            quote! { #[serde(deserialize_with = #deserialize_fn)] }
+        })
+}
+
+pub(crate) fn generate_serde_alias_attrs(field: &NamedField) -> TokenStream {
+    if !field.commands().is_empty() {
+        // `clap` does not support aliases for command-like, so we forward any
+        // `#[config(alias, aliases)]` directly
+        field
+            .aliases()
+            .into_iter()
+            .map(|alias| quote! { #[serde(alias = #alias)] })
+            .into_token_stream()
+    } else {
+        field
+            .args()
+            .iter()
+            .flat_map(ClapArg::aliases)
+            .map(|alias| quote! { #[serde(alias = #alias)] })
+            .into_token_stream()
+    }
+}
+
+pub(crate) fn generate_sanitized_clap_attrs(field: &NamedField) -> TokenStream {
+    field
+        .attributes()
+        .iter()
+        .map(|attr| {
+            ClapArg::sanitize(
+                attr,
+                if field.is_path() {
+                    &["require", "conflicts", "exclusive"]
+                } else {
+                    &["default", "require", "conflicts", "exclusive", "env"]
+                },
+            )
+        })
+        .into_token_stream()
+}
+
+pub(crate) fn generate_clap_bool_action_attr(field: &NamedField) -> TokenStream {
+    if field.ty().is("bool") {
+        quote! { #[arg(action = clap::ArgAction::SetTrue)] }
+    } else {
+        TokenStream::new()
     }
 }
