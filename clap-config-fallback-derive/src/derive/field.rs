@@ -85,7 +85,8 @@ pub struct Field {
 
 impl Skippable for Field {
     fn is_skipped(&self) -> bool {
-        self.skip
+        // path fields should not be generated in config type
+        self.skip || self.path
     }
 }
 
