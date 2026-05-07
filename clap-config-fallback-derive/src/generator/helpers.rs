@@ -4,7 +4,10 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    ClapArg, TypeExt, derive::NamedField, generator::GenerationTarget, syn_utils::IntoTokenStream,
+    ClapArg, TypeExt,
+    derive::{ConfigPrecedence, NamedField},
+    generator::GenerationTarget,
+    syn_utils::IntoTokenStream,
 };
 
 pub(crate) fn generate_field_definition(
@@ -211,14 +214,19 @@ pub(crate) fn generate_sanitized_clap_attrs(field: &NamedField) -> TokenStream {
         .attributes()
         .iter()
         .map(|attr| {
-            ClapArg::sanitize(
-                attr,
-                if field.is_path() {
+            let denied_args: &[&str] = match (field.precedence(), field.is_path()) {
+                (ConfigPrecedence::AfterDefault, false) | (_, true) => {
                     &["require", "conflicts", "exclusive"]
-                } else {
-                    &["default", "require", "conflicts", "exclusive", "env"]
-                },
-            )
+                }
+                (ConfigPrecedence::BeforeDefault, false) => {
+                    &["default", "require", "conflicts", "exclusive"]
+                }
+                (ConfigPrecedence::BeforeEnv, false) => {
+                    &["default", "env", "require", "conflicts", "exclusive"]
+                }
+            };
+
+            ClapArg::sanitize(attr, denied_args)
         })
         .into_token_stream()
 }

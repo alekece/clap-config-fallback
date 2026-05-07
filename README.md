@@ -81,7 +81,7 @@ command = "serve"
 1. Parse CLI arguments into `Opts`.
 2. Resolve a config file path (if one is defined).
 3. Load and deserialize config into a generated `Config` struct.
-4. Merge values with precedence **CLI > config**.
+4. Merge values with precedence **CLI > Env > Config > Default**.
 5. Reconstruct synthetic CLI args from merged `Opts`.
 6. Run your original clap parser for final parsing + validation.
 
@@ -115,11 +115,10 @@ Using `clap-config-fallback` has a few constraints:
 - Fields that participate in fallback must be serializable/deserializable.
 - Field values must be representable as CLI argument values.
 - Nested flattened structs must also derive `ConfigArgs`.
-- `#[command(flatten)]` only applies to CLI parsing.
-  Configuration is **not flattened by default** and preserves the struct hierarchy.
+- Configuration is **not flattened by default** and preserves the struct hierarchy.
   Use `#[config(flatten)]` if you want flattened behavior in configuration as well.
 - Subcommands use an **externally tagged representation** by default.
-- Subcommands must follow the **canonical structure** (see below).
+- Subcommands must follow the **canonical structure**.
 
 ## Canonical structure
 
@@ -192,7 +191,7 @@ name = "build"
 target = "x86_64-unknown-linux-gnu"
 ```
 
-> ⚠️ **Note**  
+> ⚠ **Note**  
 > The tag field shares the same namespace as variant fields, and may conflict with them.
 
 ## Derive attributes
@@ -217,6 +216,42 @@ Supported values:
 - `yaml`
 - `json`
 - `auto` (**default**) - Detect format by extension
+
+### `[config(precedence = "...")]`
+
+Controls where configuration file are inserted into `clap`'s fallback chain.
+
+Supported values:
+
+- `before_env` - CLI > **Config** > Env > Default
+- `before_default` (**default**) - CLI > Env > **Config** > Default
+- `after_default` - ClI > Env > Default > **Config**
+
+> The tag field shares the same namespace as variant fields, and may conflict with them.
+
+This attribute can be applied on types or individual fields.
+
+> ⚠ **Note**  
+> Precedence is not propagated automatically to nested types.
+
+```rust
+#[derive(Parser, ConfigParser)]
+#[config(precedence = "before_env")]
+struct Cli {
+    #[command(flatten)]
+    args: CliArgs,
+}
+
+#[derive(Args, ConfigArgs)]
+#[config(precedence = "before_default")]
+struct CliArgs {
+    #[arg(long, env = "APP_URL")]
+    url: String,
+    #[arg(short, long, default = "80")]
+    #[config(precedence = "after_default")]
+    port: u16,
+}
+```
 
 ### `#[config(skip)]`
 
@@ -277,13 +312,14 @@ struct Cli {
 
 ## Attribute reference
 
-| Attribute                             | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose                                                                |
-| ------------------------------------- | :------------: | :----------: | :----------------: | ---------------------------------------------------------------------- |
-| `#[config(path)]`                     |       ✅       |      ❌      |         ❌         | Marks the config file path field                                       |
-| `#[config(format = "...")]`           |       ✅       |      ❌      |         ❌         | Forces config format: `toml`, `yaml`, `json`, or `auto`                |
-| `#[config(skip)]`                     |       ✅       |      ✅      |         ✅         | Excludes a field or variant from config generation                     |
-| `#[config(skip_all)]`                 |       ✅       |      ✅      |         ✅         | Excludes all fields or variants from config generation                 |
-| `#[config(value_format = ...)]`       |       ✅       |      ✅      |         ✅         | Converts a merged value back into a CLI-compatible string              |
-| `#[config(tag = "...")]`              |       ❌       |      ❌      |         ✅         | Enables internally tagged subcommand representation                    |
-| `#[config(alias = "...")]`            |       ✅       |      ✅      |         ✅         | Adds one configuration-only alias for a `#[command(...)]` field        |
-| `#[config(aliases = ["...", "..."])]` |       ✅       |      ✅      |         ✅         | Adds multiple configuration-only aliases for a `#[command(...)]` field |
+| Attribute                             | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose                                                                     |
+| ------------------------------------- | :------------: | :----------: | :----------------: | --------------------------------------------------------------------------- |
+| `#[config(path)]`                     |       ✅       |      ❌      |         ❌         | Marks the config file path field                                            |
+| `#[config(format = "...")]`           |       ✅       |      ❌      |         ❌         | Forces config format: `toml`, `yaml`, `json`, or `auto`                     |
+| `#[config(skip)]`                     |       ✅       |      ✅      |         ✅         | Excludes a field or variant from config generation                          |
+| `#[config(skip_all)]`                 |       ✅       |      ✅      |         ✅         | Excludes all fields or variants from config generation                      |
+| `#[config(value_format = ...)]`       |       ✅       |      ✅      |         ✅         | Converts a merged value back into a CLI-compatible string                   |
+| `#[config(tag = "...")]`              |       ❌       |      ❌      |         ✅         | Enables internally tagged subcommand representation                         |
+| `#[config(alias = "...")]`            |       ✅       |      ✅      |         ✅         | Adds one configuration-only alias for a `#[command(...)]` field             |
+| `#[config(aliases = ["...", "..."])]` |       ✅       |      ✅      |         ✅         | Adds multiple configuration-only aliases for a `#[command(...)]` field      |
+| `#[config(precedence = "...")]`       |       ✅       |      ✅      |         ✅         | Controls where config values are inserted relative to env/default fallbacks |

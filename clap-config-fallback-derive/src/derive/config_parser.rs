@@ -5,7 +5,10 @@ use darling::{
 };
 use syn::Ident;
 
-use crate::{derive::NamedField, generator::StructLike};
+use crate::{
+    derive::{ConfigPrecedence, NamedField},
+    generator::StructLike,
+};
 
 /// Parser for the `ConfigParser` derive macro, extracting struct and field information along with
 /// custom attributes.
@@ -19,6 +22,8 @@ pub struct ConfigParser {
     /// Whether to skip all fields, making the configutation struct effectively empty.
     #[darling(default)]
     skip_all: bool,
+    #[darling(default)]
+    precedence: Option<ConfigPrecedence>,
 }
 
 impl StructLike for ConfigParser {
@@ -38,9 +43,13 @@ impl ConfigParser {
     /// Propagate the `skip_all` flag to all fields, marking them as skipped if `skip_all` is enabled.
     fn autocorrect(mut self) -> Result<Self, Error> {
         match &mut self.data {
-            Data::Struct(Fields { fields, .. }) => fields
-                .iter_mut()
-                .for_each(|field| field.skip |= self.skip_all),
+            Data::Struct(Fields { fields, .. }) => fields.iter_mut().for_each(|field| {
+                field.skip |= self.skip_all;
+
+                if field.precedence.is_none() {
+                    field.precedence = self.precedence;
+                }
+            }),
             _ => unreachable!(),
         }
 

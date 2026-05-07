@@ -27,6 +27,7 @@ struct Cli {
 }
 
 #[derive(Debug, Args, ConfigArgs, PartialEq, Eq)]
+#[config(precedence = "before_env")]
 struct UserArgs {
     #[arg(long, default_value_t = 42u16)]
     age: u16,

@@ -4,7 +4,7 @@ use syn::{Attribute, Expr, Ident, LitStr, Type};
 
 use crate::{
     TypeExt,
-    derive::{ClapArg, ClapCommand, ConfigFormat, Skippable},
+    derive::{ClapArg, ClapCommand, ConfigFormat, ConfigPrecedence, Skippable},
 };
 
 /// Named-field wrapper used by derives that only support struct-style fields.
@@ -77,6 +77,8 @@ pub struct Field {
     aliases: Option<Vec<LitStr>>,
     #[darling(default)]
     no_flatten: bool,
+    #[darling(default)]
+    pub(crate) precedence: Option<ConfigPrecedence>,
     #[darling(skip)]
     commands: Option<Vec<ClapCommand>>,
     #[darling(skip)]
@@ -134,6 +136,10 @@ impl Field {
 
     pub fn flatten(&self) -> bool {
         !self.no_flatten && self.commands().contains(&ClapCommand::Flatten)
+    }
+
+    pub fn precedence(&self) -> ConfigPrecedence {
+        self.precedence.unwrap_or_default()
     }
 
     pub fn commands(&self) -> &[ClapCommand] {
