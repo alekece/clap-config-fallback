@@ -105,36 +105,47 @@ pub(crate) fn generate_into_args_statement(ident: &Ident, field: &NamedField) ->
     } else {
         let formatted_value = field
             .value_format()
-            .map(|value_format| quote! { #value_format })
-            .unwrap_or_else(|| quote! { #field_ident.to_string() });
+            .map(|formatter| quote! { (#formatter)(value).to_string() })
+            .unwrap_or_else(|| quote! { value.to_string() });
 
-        match field
+        let flag_name = field
             .args()
             .iter()
             .find_map(|arg| arg.flag_name(field_ident))
-        {
-            Some(flag_name) if field.ty().is("bool") => {
-                quote! {
-                    if let Some(true) = #field_ident {
-                        #ident.push(#flag_name.to_string());
-                    }
+            .map(|flag_name| quote! { #flag_name.to_string() });
+
+        match flag_name {
+            Some(flag_name) if field.ty().is("bool") => quote! {
+                if let Some(true) = #field_ident {
+                    #ident.push(#flag_name);
                 }
-            }
-            Some(flag_name) => {
-                quote! {
-                    if let Some(#field_ident) = #field_ident {
-                        #ident.push(#flag_name.to_string());
+            },
+            Some(flag_name) if field.ty().is("Vec") => quote! {
+                if let Some(values) = #field_ident {
+                    for value in values {
+                        #ident.push(#flag_name);
                         #ident.push(#formatted_value);
                     }
                 }
-            }
-            None => {
-                quote! {
-                    if let Some(#field_ident) = #field_ident {
+            },
+            Some(flag_name) => quote! {
+                if let Some(value) = #field_ident {
+                    #ident.push(#flag_name);
+                    #ident.push(#formatted_value);
+                }
+            },
+            None if field.ty().is("Vec") => quote! {
+                if let Some(values) = #field_ident {
+                    for value in values {
                         #ident.push(#formatted_value);
                     }
                 }
-            }
+            },
+            None => quote! {
+                if let Some(value) = #field_ident {
+                    #ident.push(#formatted_value);
+                }
+            },
         }
     }
 }
