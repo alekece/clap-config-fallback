@@ -278,7 +278,7 @@ Controls how a value is converted back into CLI arguments after merging.
 
 ```rust
 #[arg(long)]
-#[config(value_format = format!("{}s", duration.as_secs()))]
+#[config(value_format = |value: Duration| format!("{}s", duration.as_secs()))]
 duration: Duration,
 ```
 
