@@ -6,7 +6,6 @@ use tempfile::NamedTempFile;
 
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
-    #[arg(long)]
     name: String,
     #[arg(long)]
     threads: u16,
@@ -48,7 +47,6 @@ fn cli_overrides_config_values() -> Result<()> {
 
     let cli = Cli::try_parse_with_config_from([
         "bin",
-        "--name",
         "from-cli",
         "--threads",
         "8",
@@ -70,7 +68,6 @@ fn missing_config_file_is_reported_as_io_error() -> Result<()> {
 
     let err = Cli::try_parse_with_config_from([
         "bin",
-        "--name",
         "x",
         "--threads",
         "1",

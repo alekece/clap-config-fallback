@@ -1,6 +1,8 @@
+name = "titi"
 debug = true
 profile = "dev"
 threads = 32
+names = ["a", "b", "c"]
 
 [command]
 ref = "debug"

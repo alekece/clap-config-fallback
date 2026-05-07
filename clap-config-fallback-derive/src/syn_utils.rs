@@ -33,6 +33,7 @@ pub trait TypeExt {
     /// Unwraps an `Option` type to get the inner type, or returns the type itself if it is not an `Option`.
     fn unwrap_option(&self) -> Type;
 
+    /// Checks if the type is the unit type `()`.
     fn is_unit(&self) -> bool;
 }
 

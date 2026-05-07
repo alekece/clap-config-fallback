@@ -8,7 +8,7 @@ use tempfile::NamedTempFile;
 #[derive(Debug, Parser, ConfigParser, PartialEq, Eq)]
 struct Cli {
     #[arg(long, value_parser = humantime::parse_duration)]
-    #[config(value_format = humantime::format_duration(interval).to_string())]
+    #[config(value_format = humantime::format_duration)]
     interval: Duration,
     #[arg(long)]
     #[config(path, format = "toml")]

@@ -24,7 +24,7 @@ enum Command {
         #[arg(long)]
         verbose: bool,
         #[arg(short, long, value_parser = humantime::parse_duration)]
-        #[config(value_format = humantime::format_duration(timeout).to_string())]
+        #[config(value_format = humantime::format_duration)]
         timeout: Option<Duration>,
     },
     Empty {},
