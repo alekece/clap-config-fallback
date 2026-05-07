@@ -169,14 +169,33 @@ pub(crate) fn generate_deserialize_fn(
         format_ident!("deserialize_{}", field.ident())
     };
 
+    let deserialize_body = if field.ty().is("Vec") {
+        quote! {
+            let s: ::std::option::Option<::std::vec::Vec<String>> = ::serde::Deserialize::deserialize(deserializer)?;
+
+            s
+                .map(|s| s
+                    .into_iter()
+                    .map(|s| #parser(s.as_str()).map_err(::serde::de::Error::custom))
+                    .collect::<::std::result::Result<::std::vec::Vec<_>, _>>()
+                )
+                .transpose()
+
+        }
+    } else {
+        quote! {
+            let s: ::std::option::Option<String> = ::serde::Deserialize::deserialize(deserializer)?;
+
+            s.map(|s| #parser(s.as_str()).map_err(::serde::de::Error::custom)).transpose()
+        }
+    };
+
     quote! {
         fn #fn_ident<'de, D>(deserializer: D) -> ::std::result::Result<#field_ty, D::Error>
         where
             D: ::serde::de::Deserializer<'de>,
         {
-            let s: ::std::option::Option<String> = ::serde::Deserialize::deserialize(deserializer)?;
-
-            s.map(|s| #parser(s.as_str()).map_err(::serde::de::Error::custom)).transpose()
+            #deserialize_body
         }
     }
 }
