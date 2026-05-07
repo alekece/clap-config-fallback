@@ -80,6 +80,12 @@ pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream 
         quote! {
             #field_ident: args.get_flag(stringify!(#field_ident)).then_some(true)
         }
+    } else if field.ty().is("Vec") {
+        quote! {
+            #field_ident: args
+                .get_many(stringify!(#field_ident))
+                .map(|values| values.cloned().collect())
+        }
     } else {
         quote! {
             #field_ident: args.get_one(stringify!(#field_ident)).cloned()
