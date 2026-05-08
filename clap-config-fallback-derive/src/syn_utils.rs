@@ -24,9 +24,6 @@ pub trait TypeExt {
     /// Checks if the type is a specific identifier.
     fn is(&self, ident: &str) -> bool;
 
-    /// Checks if the type is an `Option` of a specific identifier.
-    fn is_option_of(&self, ident: &str) -> bool;
-
     /// Converts the type to an `Option` type if it is not already an `Option`.
     fn to_option(&self) -> Type;
 
@@ -48,19 +45,6 @@ impl TypeExt for Type {
             && segment.ident == ident
         {
             true
-        } else {
-            false
-        }
-    }
-
-    fn is_option_of(&self, ident: &str) -> bool {
-        if let Type::Path(type_path) = self
-            && let Some(segment) = type_path.path.segments.last()
-            && segment.ident == "Option"
-            && let PathArguments::AngleBracketed(args) = &segment.arguments
-            && let Some(GenericArgument::Type(ty)) = args.args.first()
-        {
-            ty.is(ident)
         } else {
             false
         }
