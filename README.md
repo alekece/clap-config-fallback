@@ -43,7 +43,7 @@ use clap_config_fallback::{ConfigParser, ConfigSubcommand};
 struct Cli {
     #[arg(long)]
     #[config(path)]
-    config: Option<String>,
+    config_path: Option<PathBuf>,
 
     #[arg(long)]
     host: String,
@@ -79,7 +79,7 @@ command = "serve"
 `#[derive(ConfigParser)]` generates an intermediate optional `Opts` struct and runs a two-phase parse:
 
 1. Parse CLI arguments into `Opts`.
-2. Resolve a config file path (if one is defined).
+2. Resolve a config file path, if any.
 3. Load and deserialize config into a generated `Config` struct.
 4. Merge values with precedence **CLI > Env > Config > Default**.
 5. Reconstruct synthetic CLI args from merged `Opts`.
@@ -98,9 +98,23 @@ used together:
 | `Args`       | `ConfigArgs`         | Nested argument groups        |
 | `Subcommand` | `ConfigSubcommand`   | Enum-based subcommands        |
 
-## Precedence and edge cases
+## Attribute reference
 
-- **CLI always wins** over config for the same field.
+| Attribute                             | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose                                                                      |
+| ------------------------------------- | :------------: | :----------: | :----------------: | ---------------------------------------------------------------------------- |
+| `#[config(path)]`                     |       ✅       |      ❌      |         ❌         | Marks the config file path field                                             |
+| `#[config(format = "...")]`           |       ✅       |      ❌      |         ❌         | Forces config format: `toml`, `yaml`, `json`, or `auto`                      |
+| `#[config(skip)]`                     |       ✅       |      ✅      |         ✅         | Excludes a field or variant from config generation                           |
+| `#[config(skip_all)]`                 |       ✅       |      ✅      |         ✅         | Excludes all fields or variants from config generation                       |
+| `#[config(no_flatten)]`               |       ✅       |      ✅      |         ❌         | Prevents a `#[command(flatten)]` field from being flattened in configuration |
+| `#[config(value_format = ...)]`       |       ✅       |      ✅      |         ✅         | Converts a merged value back into a CLI-compatible argument value            |
+| `#[config(tag = "...")]`              |       ❌       |      ❌      |         ✅         | Enables internally tagged subcommand representation                          |
+| `#[config(alias = "...")]`            |       ✅       |      ✅      |         ✅         | Adds one configuration-only alias for a structured `#[command(...)]` field   |
+| `#[config(aliases = ["...", "..."])]` |       ✅       |      ✅      |         ✅         | Adds multiple configuration-only aliases for a structured command field      |
+| `#[config(precedence = "...")]`       |       ✅       |      ✅      |         ✅         | Controls where config values are inserted relative to env/default fallbacks  |
+
+### Runtime behavior
+
 - Config fallback only runs when a `#[config(path)]` field is present and resolves to `Some(path)`.
 - If the path field has a clap `default_value`, that default also enables fallback.
 - If no path is available, parsing behaves like normal clap parsing.
@@ -115,8 +129,9 @@ Using `clap-config-fallback` has a few constraints:
 - Fields that participate in fallback must be serializable/deserializable.
 - Field values must be representable as CLI argument values.
 - Nested flattened structs must also derive `ConfigArgs`.
-- Configuration is **not flattened by default** and preserves the struct hierarchy.
-  Use `#[config(flatten)]` if you want flattened behavior in configuration as well.
+- Configuration structure mirrors clap behavior by default.
+  `#[command(flatten)]` also flatten fields in configuration.
+  Use `#[config(no_flatten)]` to preserve a nested configuration section.
 - Subcommands use an **externally tagged representation** by default.
 - Subcommands must follow the **canonical structure**.
 
@@ -137,7 +152,7 @@ Use a root struct that defines the config path and delegates to subcommands:
 struct Cli {
     #[arg(long)]
     #[config(path)]
-    config_path: String,
+    config_path: PathBuf,
 
     #[command(subcommand)]
     command: Command,
@@ -183,7 +198,7 @@ enum Command { ... }
 
 ```
 
-Resulting to the following configuration:
+Resulting configuration:
 
 ```toml
 [command]
@@ -201,10 +216,10 @@ target = "x86_64-unknown-linux-gnu"
 Marks the field that stores the configuration file path.
 
 - Must be one of:
-  - `String`
-  - `Option<String>`
+  - `String` or `Option<String>`
+  - `PathBuf` or `Option<PathBuf>`
 
-If no `path` field exists, config fallback is disabled.
+If no `path` field exists, configuration fallback is disabled.
 
 ### `#[config(format = "...")]`
 
@@ -219,15 +234,13 @@ Supported values:
 
 ### `[config(precedence = "...")]`
 
-Controls where configuration file are inserted into `clap`'s fallback chain.
+Controls where configuration values are inserted into `clap`'s fallback chain.
 
 Supported values:
 
 - `before_env` - CLI > **Config** > Env > Default
 - `before_default` (**default**) - CLI > Env > **Config** > Default
 - `after_default` - ClI > Env > Default > **Config**
-
-> The tag field shares the same namespace as variant fields, and may conflict with them.
 
 This attribute can be applied on types or individual fields.
 
@@ -255,7 +268,7 @@ struct CliArgs {
 
 ### `#[config(skip)]`
 
-Excludes a field from config fallback while keeping normal CLI parsing.
+Excludes a field from configuration fallback while keeping normal CLI parsing.
 
 ```rust
 #[arg(long)]
@@ -265,7 +278,7 @@ port: u16,
 
 ### `#[config(skip_all)]`
 
-Disables config fallback for all fields.
+Disables configuration fallback for all fields.
 
 ```rust
 #[config(skip_all)]
@@ -296,10 +309,18 @@ enum Command { ... }
 
 Adds configuration-only aliases for fields using `#[command(...)]`.
 
-While clap flattens these fields in the CLI, they still appear as structured keys in configuration
-files. Configuration is **not flattened by default**, even when using `#[command(flatten)]`.
-Aliases allow alternative section names to be accepted during configuration deserialization,
-without changing CLI behavior.
+Configuration structure intentionally mimics clap behavior:
+
+`#[command(flatten)]` also flattens fields in configuration,
+`#[command(subcommand)]` remains structured.
+
+As a result, aliases are only meaningful for:
+
+subcommand fields,
+or flattened fields explicitly marked with `#[config(no_flatten)]`.
+
+Aliases allow alternative configuration key or section names to be accepted during deserialization,
+without affecting CLI behavior.
 
 ```rust
 #[derive(Parser, ConfigParser)]
@@ -310,16 +331,33 @@ struct Cli {
 }
 ```
 
-## Attribute reference
+### `#[config(no_flatten)]`
 
-| Attribute                             | `ConfigParser` | `ConfigArgs` | `ConfigSubcommand` | Purpose                                                                     |
-| ------------------------------------- | :------------: | :----------: | :----------------: | --------------------------------------------------------------------------- |
-| `#[config(path)]`                     |       ✅       |      ❌      |         ❌         | Marks the config file path field                                            |
-| `#[config(format = "...")]`           |       ✅       |      ❌      |         ❌         | Forces config format: `toml`, `yaml`, `json`, or `auto`                     |
-| `#[config(skip)]`                     |       ✅       |      ✅      |         ✅         | Excludes a field or variant from config generation                          |
-| `#[config(skip_all)]`                 |       ✅       |      ✅      |         ✅         | Excludes all fields or variants from config generation                      |
-| `#[config(value_format = ...)]`       |       ✅       |      ✅      |         ✅         | Converts a merged value back into a CLI-compatible string                   |
-| `#[config(tag = "...")]`              |       ❌       |      ❌      |         ✅         | Enables internally tagged subcommand representation                         |
-| `#[config(alias = "...")]`            |       ✅       |      ✅      |         ✅         | Adds one configuration-only alias for a `#[command(...)]` field             |
-| `#[config(aliases = ["...", "..."])]` |       ✅       |      ✅      |         ✅         | Adds multiple configuration-only aliases for a `#[command(...)]` field      |
-| `#[config(precedence = "...")]`       |       ✅       |      ✅      |         ✅         | Controls where config values are inserted relative to env/default fallbacks |
+Prevents a `#[command(flatten)]` field from being flattened in configuration.
+
+```rust
+#[derive(Parser, ConfigParser)]
+struct Cli {
+    #[command(flatten)]
+    #[config(no_flatten)]
+    database: DatabaseArgs,
+}
+```
+
+Resulting configuration:
+
+```toml
+[database]
+host = "localhost"
+port = 5432
+```
+
+Without `#[config(no_flatten)]`, the configuration would instead be flattened:
+
+```toml
+host = "localhost"
+port = 5432
+```
+
+This attribute is also useful when combined with `#[config(alias = "...")]`, since aliases only
+apply to structured configuration sections.
