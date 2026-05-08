@@ -9,6 +9,8 @@ use tempfile::NamedTempFile;
 struct Cli {
     #[arg(long)]
     debug: bool,
+    #[arg(short, long)]
+    verbose: Option<bool>,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
@@ -60,6 +62,32 @@ fn bool_flag_missing_from_cli_and_config_falls_back_to_false() -> Result<()> {
     ])?;
 
     assert!(!cli.debug);
+
+    Ok(())
+}
+
+#[test]
+fn optional_bool_can_be_enabled_from_config() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, "verbose = true")?;
+
+    let cli = Cli::try_parse_with_config_from([
+        "bin",
+        "--config-path",
+        &file.path().display().to_string(),
+    ])?;
+
+    assert_eq!(cli.verbose, Some(true));
+
+    Ok(())
+}
+
+#[test]
+fn optional_bool_is_parsed_from_cli() -> Result<()> {
+    let cli = Cli::try_parse_with_config_from(["bin", "--verbose", "true"])?;
+
+    assert_eq!(cli.verbose, Some(true));
 
     Ok(())
 }
