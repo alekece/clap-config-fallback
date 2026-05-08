@@ -1,6 +1,6 @@
 use darling::{Error, FromField};
 use derive_more::{Deref, DerefMut};
-use syn::{Attribute, Expr, Ident, LitStr, Type};
+use syn::{Attribute, Expr, Ident, LitStr, Type, parse_quote};
 
 use crate::{
     TypeExt,
@@ -161,7 +161,12 @@ impl Field {
                 .filter_map(ClapCommand::from_attr)
                 .collect(),
         );
+
         self.args = Some(self.attrs.iter().filter_map(ClapArg::from_attr).collect());
+
+        if self.value_format.is_none() && self.ty().unwrap_option().is("PathBuf") {
+            self.value_format = Some(parse_quote! { ::clap_config_fallback::format::path });
+        }
 
         if !self.aliases().is_empty() && self.commands().is_empty() {
             error.push(
@@ -177,12 +182,12 @@ impl Field {
             );
         }
 
-        if self.path && !(self.ty.is("String") || self.ty.is_option_of("String")) {
+        if self.path
+            && !(self.ty.unwrap_option().is("String") || self.ty.unwrap_option().is("PathBuf"))
+        {
             error.push(
-                Error::custom(
-                    "`#[config(path)]` requires a field of type `String` or `Option<String>`",
-                )
-                .with_span(&self.ident),
+                Error::custom("`#[config(path)]` requires a field of type `String` or `PathBuf`")
+                    .with_span(&self.ident),
             );
         }
 

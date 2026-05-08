@@ -36,7 +36,7 @@ pub enum ConfigFormat {
 /// Provides configuration path and format discovery for fallback loading.
 pub trait ConfigSource {
     /// Returns the config file path when fallback should be attempted.
-    fn config_path(&self) -> Option<&str>;
+    fn config_path(&self) -> Option<&Path>;
 
     /// Returns a config format if it can be resolved.
     ///
@@ -45,18 +45,16 @@ pub trait ConfigSource {
     /// - `.yaml` / `.yml` (`yaml` feature)
     /// - `.json` (`json` feature)
     fn config_format(&self) -> Option<ConfigFormat> {
-        self.config_path().and_then(|path| {
-            if cfg!(feature = "toml") && path.ends_with(".toml") {
-                Some(ConfigFormat::Toml)
-            } else if cfg!(feature = "yaml") && (path.ends_with(".yaml") || path.ends_with(".yml"))
-            {
-                Some(ConfigFormat::Yaml)
-            } else if cfg!(feature = "json") && path.ends_with(".json") {
-                Some(ConfigFormat::Json)
-            } else {
-                None
-            }
-        })
+        self.config_path()
+            .and_then(|path| match path.extension().and_then(OsStr::to_str) {
+                #[cfg(feature = "toml")]
+                Some("toml") => Some(ConfigFormat::Toml),
+                #[cfg(feature = "yaml")]
+                Some("yaml" | "yml") => Some(ConfigFormat::Yaml),
+                #[cfg(feature = "json")]
+                Some("json") => Some(ConfigFormat::Json),
+                _ => None,
+            })
     }
 }
 

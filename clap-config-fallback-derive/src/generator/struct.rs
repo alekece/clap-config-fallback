@@ -190,11 +190,11 @@ impl<T: StructLike> StructGenerator<T> {
             .fields()
             .iter()
             .find_map(|field| field.is_path().then_some(field.ident()))
-            .map(|field_ident| quote! { #ident.#field_ident.as_deref() })
+            .map(|field_ident| quote! { #ident.#field_ident.as_ref().map(::std::path::Path::new) })
             .unwrap_or_else(|| quote! { ::std::option::Option::None });
 
         quote! {
-            fn config_path(&self) -> ::std::option::Option<&str> {
+            fn config_path(&self) -> ::std::option::Option<&::std::path::Path> {
                 #config_path
             }
         }
