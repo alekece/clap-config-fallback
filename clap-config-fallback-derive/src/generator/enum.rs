@@ -30,7 +30,7 @@ impl EnumGenerator<ConfigSubcommand> {
         let (opts_ident, opts) = self.generate_enum(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_enum(GenerationTarget::Config);
         let deserialize_fns = self.generate_deserialize_fns();
-        let into_args_fn = self.generate_into_args_fn();
+        let extend_arg_fn = self.generate_extend_args_fn();
         let from_args_fn = self.generate_from_args_fn();
 
         quote! {
@@ -44,7 +44,7 @@ impl EnumGenerator<ConfigSubcommand> {
             }
 
             impl ::clap_config_fallback::IntoArgs for #opts_ident {
-                #into_args_fn
+                #extend_arg_fn
             }
 
             impl ::clap_config_fallback::FromArgs for #opts_ident {
@@ -116,22 +116,23 @@ impl<T: EnumLike> EnumGenerator<T> {
         )
     }
 
-    fn generate_into_args_fn(&self) -> TokenStream {
-        let ident = format_ident!("__args");
+    fn generate_extend_args_fn(&self) -> TokenStream {
+        let ident = format_ident!("__clap_args");
         let variant_matches = self.input.variants().iter().map(|variant| {
             let variant_ident = variant.ident();
             let formatted_variant = variant_ident.to_string().to_kebab_case();
+            let variant_arg = quote! {
+                ::clap_config_fallback::Arg::scalar(#formatted_variant).extend_args(#ident)
+            };
 
             match variant.shape() {
                 VariantShape::Unit => quote! {
-                    Self::#variant_ident => {
-                        #ident.push(#formatted_variant.to_string());
-                    }
+                    Self::#variant_ident => #variant_arg
                 },
                 VariantShape::Newtype(_) => quote! {
                     Self::#variant_ident(value) => {
-                        #ident.push(#formatted_variant.to_string());
-                        #ident.extend(value.into_args());
+                        #variant_arg;
+                        value.extend_args(#ident);
                     }
                 },
                 VariantShape::Struct(fields) => {
@@ -140,14 +141,14 @@ impl<T: EnumLike> EnumGenerator<T> {
                         .map(|field| {
                             (
                                 field.ident(),
-                                helpers::generate_into_args_statement(&ident, field),
+                                helpers::generate_extend_args_statement(&ident, field),
                             )
                         })
                         .unzip();
 
                     quote! {
                         Self::#variant_ident { #(#field_idents,)* } => {
-                            #ident.push(#formatted_variant.to_string());
+                            #variant_arg;
 
                             #(#field_statements)*
                         }
@@ -157,14 +158,10 @@ impl<T: EnumLike> EnumGenerator<T> {
         });
 
         quote! {
-            fn into_args(self) -> impl ::std::iter::Iterator<Item = ::std::string::String> {
-                let mut #ident = Vec::new();
-
+            fn extend_args(self, #ident: &mut ::std::vec::Vec<::std::ffi::OsString>) {
                 match self {
                     #(#variant_matches,)*
                 }
-
-                #ident.into_iter()
             }
         }
     }

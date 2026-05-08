@@ -27,7 +27,7 @@ impl StructGenerator<ConfigParser> {
         let ident = self.input.ident();
         let (opts_ident, opts) = self.generate_struct(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_struct(GenerationTarget::Config);
-        let into_args_fn = self.generate_into_args_fn();
+        let extend_args_fn = self.generate_extend_args_fn();
         let from_args_fn = self.generate_from_args_fn();
         let deserialize_fns = self.generate_deserialize_fns();
         let config_path_fn = self.generate_config_path_fn();
@@ -44,7 +44,7 @@ impl StructGenerator<ConfigParser> {
             #opts
 
             impl ::clap_config_fallback::IntoArgs for #opts_ident {
-                #into_args_fn
+                #extend_args_fn
             }
 
             impl ::clap_config_fallback::FromArgs for #opts_ident {
@@ -73,7 +73,7 @@ impl StructGenerator<ConfigArgs> {
         let ident = self.input.ident();
         let (opts_ident, opts) = self.generate_struct(GenerationTarget::Opts);
         let (config_ident, config) = self.generate_struct(GenerationTarget::Config);
-        let into_args_fn = self.generate_into_args_fn();
+        let extend_args_fn = self.generate_extend_args_fn();
         let from_args_fn = self.generate_from_args_fn();
         let deserialize_fns = self.generate_deserialize_fns();
 
@@ -88,7 +88,7 @@ impl StructGenerator<ConfigArgs> {
             #opts
 
             impl ::clap_config_fallback::IntoArgs for #opts_ident {
-                #into_args_fn
+                #extend_args_fn
             }
 
             impl ::clap_config_fallback::FromArgs for #opts_ident {
@@ -165,23 +165,20 @@ impl<T: StructLike> StructGenerator<T> {
         }
     }
 
-    fn generate_into_args_fn(&self) -> TokenStream {
-        let ident = format_ident!("__args");
+    fn generate_extend_args_fn(&self) -> TokenStream {
+        let ident = format_ident!("__clap_arg");
         let field_idents = self.input.fields().iter().map(|field| field.ident());
         let field_args = self
             .input
             .fields()
             .iter()
-            .map(|field| helpers::generate_into_args_statement(&ident, field));
+            .map(|field| helpers::generate_extend_args_statement(&ident, field));
 
         quote! {
-            fn into_args(self) -> impl ::std::iter::Iterator<Item = ::std::string::String> {
-                let mut #ident = Vec::new();
+            fn extend_args(self, #ident: &mut ::std::vec::Vec<::std::ffi::OsString>) {
                 #(let #field_idents = self.#field_idents;)*
 
                 #(#field_args)*
-
-                #ident.into_iter()
             }
         }
     }

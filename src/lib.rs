@@ -7,14 +7,23 @@
 //! 3. Merge with precedence `CLI > config`.
 //! 4. Re-run clap on reconstructed arguments for final validation.
 
-use std::{ffi::OsString, iter, path::PathBuf};
+mod arg;
+pub mod format;
 
-use clap::{ArgMatches, CommandFactory, Error, Parser, error::ErrorKind};
+use std::{
+    ffi::{OsStr, OsString},
+    iter,
+    path::{Path, PathBuf},
+};
+
+use clap::{CommandFactory, Error, Parser, error::ErrorKind};
 use figment::{Figment, providers::*};
 use serde::{Serialize, de::DeserializeOwned};
 
 #[cfg(feature = "derive")]
 pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand};
+
+pub use arg::{Arg, FromArgs, IntoArgs};
 
 /// Supported configuration file formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,20 +31,6 @@ pub enum ConfigFormat {
     Toml,
     Yaml,
     Json,
-}
-
-/// Converts an intermediate options struct into synthetic CLI args.
-///
-/// These args are fed back into clap for the final parse/validation pass.
-pub trait IntoArgs {
-    fn into_args(self) -> impl Iterator<Item = String>;
-}
-
-/// Builds an intermediate options struct from clap `ArgMatches`.
-///
-/// This pass captures values explicitly provided on the CLI before config fallback is applied.
-pub trait FromArgs: Sized {
-    fn from_args(args: &ArgMatches) -> Option<Self>;
 }
 
 /// Provides configuration path and format discovery for fallback loading.
@@ -110,7 +105,7 @@ where
         T: Into<OsString> + Clone,
     {
         let command = <Self::Opts as CommandFactory>::command();
-        let command_name = command.get_name().to_owned();
+        let command_name = command.get_name().to_owned().into();
         let args = args.into_iter().collect::<Vec<_>>();
 
         for arg in args.iter().cloned() {

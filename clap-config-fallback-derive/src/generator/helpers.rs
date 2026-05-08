@@ -80,7 +80,7 @@ pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream 
         quote! {
             #field_ident: args.get_flag(stringify!(#field_ident)).then_some(true)
         }
-    } else if field.ty().is("Vec") {
+    } else if field.ty().unwrap_option().is("Vec") {
         quote! {
             #field_ident: args
                 .get_many(stringify!(#field_ident))
@@ -93,59 +93,39 @@ pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream 
     }
 }
 
-pub(crate) fn generate_into_args_statement(ident: &Ident, field: &NamedField) -> TokenStream {
+pub(crate) fn generate_extend_args_statement(ident: &Ident, field: &NamedField) -> TokenStream {
     let field_ident = field.ident();
 
     if !field.commands().is_empty() {
         quote! {
-            if let Some(#field_ident) = #field_ident {
-                 #ident.extend(#field_ident.into_args());
-            }
+            #field_ident.extend_args(#ident);
         }
     } else {
-        let formatted_value = field
-            .value_format()
-            .map(|formatter| quote! { (#formatter)(value).to_string() })
-            .unwrap_or_else(|| quote! { value.to_string() });
-
-        let flag_name = field
+        let arg_name = field
             .args()
             .iter()
             .find_map(|arg| arg.flag_name(field_ident))
-            .map(|flag_name| quote! { #flag_name.to_string() });
+            .map(|arg_name| quote! { .name(#arg_name) });
 
-        match flag_name {
-            Some(flag_name) if field.ty().is("bool") => quote! {
-                if let Some(true) = #field_ident {
-                    #ident.push(#flag_name);
-                }
-            },
-            Some(flag_name) if field.ty().is("Vec") => quote! {
-                if let Some(values) = #field_ident {
-                    for value in values {
-                        #ident.push(#flag_name);
-                        #ident.push(#formatted_value);
-                    }
-                }
-            },
-            Some(flag_name) => quote! {
-                if let Some(value) = #field_ident {
-                    #ident.push(#flag_name);
-                    #ident.push(#formatted_value);
-                }
-            },
-            None if field.ty().is("Vec") => quote! {
-                if let Some(values) = #field_ident {
-                    for value in values {
-                        #ident.push(#formatted_value);
-                    }
-                }
-            },
-            None => quote! {
-                if let Some(value) = #field_ident {
-                    #ident.push(#formatted_value);
-                }
-            },
+        let arg_formatter = field
+            .value_format()
+            .map(|formatter| quote! { .value_format(#formatter) });
+
+        let arg_ctr = if field.ty().is("bool") {
+            quote! { ::clap_config_fallback::Arg::flag(value) }
+        } else if field.ty().unwrap_option().is("Vec") {
+            quote! { ::clap_config_fallback::Arg::repeated(value) }
+        } else {
+            quote! { ::clap_config_fallback::Arg::scalar(value) }
+        };
+
+        quote! {
+            #field_ident
+                .map(|value| {
+                    #arg_ctr
+                        #arg_name
+                        #arg_formatter
+                }).extend_args(#ident);
         }
     }
 }
@@ -169,7 +149,7 @@ pub(crate) fn generate_deserialize_fn(
         format_ident!("deserialize_{}", field.ident())
     };
 
-    let deserialize_body = if field.ty().is("Vec") {
+    let deserialize_body = if field.ty().unwrap_option().is("Vec") {
         quote! {
             let s: ::std::option::Option<::std::vec::Vec<String>> = ::serde::Deserialize::deserialize(deserializer)?;
 
