@@ -130,6 +130,7 @@ impl<T: StructLike> StructGenerator<T> {
     }
 
     fn generate_from_args_fn(&self) -> TokenStream {
+        let ident = format_ident!("__clap_self");
         let (field_assignments, field_checks) = self
             .input
             .fields()
@@ -139,7 +140,7 @@ impl<T: StructLike> StructGenerator<T> {
 
                 (
                     helpers::generate_from_args_initializer(field),
-                    quote! { __self.#field_ident.is_none() },
+                    quote! { #ident.#field_ident.is_none() },
                 )
             })
             .unzip::<_, _, Vec<_>, Vec<_>>();
@@ -152,14 +153,14 @@ impl<T: StructLike> StructGenerator<T> {
 
         quote! {
             fn from_args(args: &::clap::ArgMatches) -> Option<Self> {
-                let __self = Self {
+                let #ident = Self {
                     #(#field_assignments,)*
                 };
 
                 if #field_checks {
                     None
                 } else {
-                    Some(__self)
+                    Some(#ident)
                 }
             }
         }
