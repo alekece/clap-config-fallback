@@ -36,8 +36,7 @@ Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled 
 
 1. Model your CLI as a named root struct.
 2. Add one `#[config(path)]` field to that root struct.
-3. Derive the matching config derive for each clap derive you use.
-4. Call `parse_with_config()` instead of `parse()`.
+3. Call `parse_with_config()` instead of `parse()`.
 
 The root must be a struct because the config path has to be discovered before any subcommand is
 selected. Subcommands still work normally; put them behind a `#[command(subcommand)]` field.
@@ -200,24 +199,24 @@ those appear in both tables.
 
 ### Field and variant attributes
 
-| Attribute                             | Use on                                | Purpose                                                  |
-| ------------------------------------- | ------------------------------------- | -------------------------------------------------------- |
-| `#[config(path)]`                     | root `ConfigParser` field             | Marks the config file path field                         |
-| `#[config(format = "...")]`          | `#[config(path)]` field               | Forces `toml`, `yaml`, `json`, or `auto` format handling |
-| `#[config(precedence = "...")]`      | field                                 | Overrides fallback precedence for one field              |
-| `#[config(skip)]`                     | field or subcommand variant           | Excludes one item from config fallback                   |
-| `#[config(value_format = ...)]`       | field                                 | Converts merged values into CLI-compatible strings       |
-| `#[config(no_flatten)]`               | `#[command(flatten)]` field           | Keeps a flattened clap field as a nested config section  |
-| `#[config(alias = "...")]`           | structured `#[command(...)]` field    | Adds one config-only alias                               |
-| `#[config(aliases = ["...", ...])]`  | structured `#[command(...)]` field    | Adds multiple config-only aliases                        |
+| Attribute                           | Use on                             | Purpose                                                  |
+| ----------------------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `#[config(path)]`                   | root `ConfigParser` field          | Marks the config file path field                         |
+| `#[config(format = "...")]`         | `#[config(path)]` field            | Forces `toml`, `yaml`, `json`, or `auto` format handling |
+| `#[config(precedence = "...")]`     | field                              | Overrides fallback precedence for one field              |
+| `#[config(skip)]`                   | field or subcommand variant        | Excludes one item from config fallback                   |
+| `#[config(value_format = ...)]`     | field                              | Converts merged values into CLI-compatible strings       |
+| `#[config(no_flatten)]`             | `#[command(flatten)]` field        | Keeps a flattened clap field as a nested config section  |
+| `#[config(alias = "...")]`          | structured `#[command(...)]` field | Adds one config-only alias                               |
+| `#[config(aliases = ["...", ...])]` | structured `#[command(...)]` field | Adds multiple config-only aliases                        |
 
 ### Type-level attributes
 
-| Attribute                         | Use on                     | Purpose                                             |
-| --------------------------------- | -------------------------- | --------------------------------------------------- |
-| `#[config(precedence = "...")]`  | `ConfigParser`/`ConfigArgs` type | Sets fallback precedence for fields in that type    |
-| `#[config(skip_all)]`             | struct or subcommand enum  | Excludes all contained fields or variants           |
-| `#[config(tag = "...")]`         | `ConfigSubcommand` enum    | Enables internally tagged subcommand config         |
+| Attribute                       | Use on                           | Purpose                                          |
+| ------------------------------- | -------------------------------- | ------------------------------------------------ |
+| `#[config(precedence = "...")]` | `ConfigParser`/`ConfigArgs` type | Sets fallback precedence for fields in that type |
+| `#[config(skip_all)]`           | struct or subcommand enum        | Excludes all contained fields or variants        |
+| `#[config(tag = "...")]`        | `ConfigSubcommand` enum          | Enables internally tagged subcommand config      |
 
 ### `#[config(path)]`
 
@@ -240,11 +239,11 @@ Forces parsing for the config path field:
 
 Controls where config values are inserted into clap's fallback chain:
 
-| Value            | Precedence                   |
-| ---------------- | ---------------------------- |
-| `before_env`     | CLI > Config > Env > Default |
-| `before_default` | CLI > Env > Config > Default |
-| `after_default`  | CLI > Env > Default > Config |
+| Value            | Precedence                       |
+| ---------------- | -------------------------------- |
+| `before_env`     | CLI > **Config** > Env > Default |
+| `before_default` | CLI > Env > **Config** > Default |
+| `after_default`  | CLI > Env > Default > **Config** |
 
 `before_default` is the default. Precedence can be set on a type or a field, but it is not
 propagated automatically into nested types.
@@ -316,4 +315,25 @@ struct Cli {
     #[config(alias = "cmd")]
     command: Command,
 }
+```
+
+### `#[config(no_flatten)]`
+
+Prevents a `#[command(flatten)]` field from being flattened in configuration.
+
+```rust
+#[derive(Parser, ConfigParser)]
+struct Cli {
+    #[command(flatten)]
+    #[config(no_flatten)]
+    database: DatabaseArgs,
+}
+```
+
+Resulting configuration:
+
+```toml
+[database]
+host = "localhost"
+port = 5432
 ```
