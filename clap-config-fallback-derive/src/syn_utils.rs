@@ -30,6 +30,9 @@ pub trait TypeExt {
     /// Unwraps an `Option` type to get the inner type, or returns the type itself if it is not an `Option`.
     fn unwrap_option(&self) -> Type;
 
+    /// Get the innermost type
+    fn unwrap_all(&self) -> Type;
+
     /// Checks if the type is the unit type `()`.
     fn is_unit(&self) -> bool;
 }
@@ -66,6 +69,18 @@ impl TypeExt for Type {
             && let Some(GenericArgument::Type(ty)) = args.args.first()
         {
             ty.clone()
+        } else {
+            self.clone()
+        }
+    }
+
+    fn unwrap_all(&self) -> Type {
+        if let Type::Path(type_path) = self
+            && let Some(segment) = type_path.path.segments.last()
+            && let PathArguments::AngleBracketed(args) = &segment.arguments
+            && let Some(GenericArgument::Type(ty)) = args.args.first()
+        {
+            ty.unwrap_all()
         } else {
             self.clone()
         }

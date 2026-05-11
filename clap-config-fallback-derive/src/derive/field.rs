@@ -164,7 +164,7 @@ impl Field {
 
         self.args = Some(self.attrs.iter().filter_map(ClapArg::from_attr).collect());
 
-        if self.value_format.is_none() && self.ty().unwrap_option().is("PathBuf") {
+        if self.value_format.is_none() && self.ty().unwrap_all().is("PathBuf") {
             self.value_format = Some(parse_quote! { ::clap_config_fallback::format::path });
         }
 
