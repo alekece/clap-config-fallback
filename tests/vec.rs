@@ -1,4 +1,4 @@
-use std::{io::Write, str::FromStr};
+use std::{fmt, io::Write, str::FromStr};
 
 use clap::Parser;
 use clap_config_fallback::ConfigParser;
@@ -17,9 +17,9 @@ impl FromStr for UpperString {
     }
 }
 
-impl ToString for UpperString {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for UpperString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
