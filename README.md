@@ -1,23 +1,29 @@
 # clap-config-fallback
 
-Add configuration-file fallback to clap **without losing clap parsing, validation, or error handling**.
+[![Crates.io](https://img.shields.io/crates/v/clap-config-fallback.svg)](https://crates.io/crates/clap-config-fallback)
+[![Docs.rs](https://docs.rs/clap-config-fallback/badge.svg)](https://docs.rs/clap-config-fallback)
+[![License](https://img.shields.io/crates/l/clap-config-fallback.svg)](https://choosealicense.com/licenses/)
+
+Add configuration-file fallback to `clap` **without losing clap parsing, validation, or error handling**.
 
 ## Why?
 
 `clap` is excellent at parsing CLI arguments and producing high-quality diagnostics.
 
-What it does not do out of the box is _merge a config file with CLI arguments while preserving the
-same parsing and validation contract_.
+However, merging a configuration file with CLI arguments — while preserving the exact same parsing
+and validation contract — is difficult.
 
-Common alternatives often:
+Common workarounds often force you to:
 
-- reimplement parsing and drift from clap behavior,
-- duplicate structs (one for CLI, one for config), or
-- validate after parsing in a separate pass.
+- Reimplement parsing, leading to drift from standard `clap` behavior.
+- Duplicate structs (one for CLI, one for config).
+- Validate inputs in a separate, post-parsing pass.
 
-`clap-config-fallback` keeps **clap as the single source of truth for parsing and validation**.
+`clap-config-fallback` solves this by keeping **clap as the single source of truth**.
 
 ## Installation
+
+Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -34,6 +40,9 @@ Optional format features:
 All three are enabled by default.
 
 ## Quick start
+
+To use configuration fallback, **your root type must be a named struct** (see [Canonical form]) so
+the config path can be resolved before subcommands are evaluated.
 
 ```rust
 use clap::{Parser, Subcommand};
