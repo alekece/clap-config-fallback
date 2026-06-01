@@ -5,7 +5,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.11"
 edition = "2024"
-rust-version = "1.94.1"
+rust-version = "1.88.0"
 authors = ["Alexis Le Provost <alexis.leprovost@outlook.com>"]
 categories = ["command-line-interface", "config"]
 license = "MIT or Apache-2.0"
