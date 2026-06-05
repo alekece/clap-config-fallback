@@ -4,7 +4,8 @@
   "profile": "prod",
   "threads": 10,
   "command": {
-    "ref": "test"
+    "run": { "target": "arm64" },
+    "debug": { "verbose": true }
   },
   "server": {
     "url": "http://localhost:8080",

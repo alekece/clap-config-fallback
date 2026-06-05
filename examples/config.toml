@@ -4,9 +4,18 @@ profile = "dev"
 threads = 32
 names = ["a", "b", "c"]
 
-[command]
-ref = "debug"
+[command.run]
+target = "x86_64"
+
+[command.debug]
 verbose = true
+
+[command.test]
+duration = "5s"
+
+[command.bench]
+interval = "2s"
+iterations = 100
 
 [server]
 url = "http://localhost:8080"

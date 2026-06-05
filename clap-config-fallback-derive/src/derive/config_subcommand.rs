@@ -30,7 +30,7 @@ use crate::{derive::Variant, generator::EnumLike};
 ///
 /// with:
 ///
-/// ```rust
+/// ```rust,ignore
 /// #[derive(ConfigSubcommand)]
 /// #[config(tag = "ref")]
 /// enum Command { ... }
