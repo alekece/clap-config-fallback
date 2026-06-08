@@ -3,8 +3,8 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 use crate::{
-    ConfigArgs,
-    derive::{ConfigFormat, ConfigParser, NamedField},
+    ConfigArgs, TypeExt,
+    derive::{ClapCommand, ConfigFormat, ConfigParser, NamedField},
     generator::{GenerationTarget, helpers},
     syn_utils::IntoTokenStream,
 };
@@ -32,6 +32,8 @@ impl StructGenerator<ConfigParser> {
         let deserialize_fns = self.generate_deserialize_fns();
         let config_path_fn = self.generate_config_path_fn();
         let config_format_fn = self.generate_config_format_fn();
+        let command_aware_impl =
+            self.generate_command_aware_impl(ident, &opts_ident, &config_ident);
 
         quote! {
             #config
@@ -61,8 +63,71 @@ impl StructGenerator<ConfigParser> {
                 type Config = #config_ident;
             }
 
+            #command_aware_impl
+
             impl ::clap_config_fallback::ConfigParser for #ident {
 
+            }
+        }
+    }
+
+    fn generate_command_aware_impl(
+        &self,
+        ident: &Ident,
+        opts_ident: &Ident,
+        config_ident: &Ident,
+    ) -> TokenStream {
+        let command_field = self
+            .input
+            .fields()
+            .iter()
+            .find(|f| f.commands().contains(&ClapCommand::Subcommand));
+
+        if let Some(field) = command_field {
+            let field_ident = field.ident();
+            let field_ty = field.ty().clone().unwrap_option();
+
+            quote! {
+                impl ::clap_config_fallback::CommandAware for #ident {
+                    type CommandOpts = <#field_ty as ::clap_config_fallback::ConfigFallback>::Opts;
+                    type CommandConfig = <#field_ty as ::clap_config_fallback::ConfigFallback>::Config;
+
+                    fn take_opts_command(
+                        opts: &mut #opts_ident,
+                    ) -> ::std::option::Option<Self::CommandOpts> {
+                        opts.#field_ident.take()
+                    }
+
+                    fn take_config_command(
+                        config: &mut #config_ident,
+                    ) -> ::std::option::Option<Self::CommandConfig> {
+                        config.#field_ident.take()
+                    }
+
+                    fn put_opts_command(
+                        opts: &mut #opts_ident,
+                        cmd: ::std::option::Option<Self::CommandOpts>,
+                    ) {
+                        opts.#field_ident = cmd;
+                    }
+                }
+            }
+        } else {
+            quote! {
+                impl ::clap_config_fallback::CommandAware for #ident {
+                    type CommandOpts = ();
+                    type CommandConfig = ();
+
+                    fn take_opts_command(_: &mut #opts_ident) -> ::std::option::Option<()> {
+                        ::std::option::Option::None
+                    }
+
+                    fn take_config_command(_: &mut #config_ident) -> ::std::option::Option<()> {
+                        ::std::option::Option::None
+                    }
+
+                    fn put_opts_command(_: &mut #opts_ident, _: ::std::option::Option<()>) {}
+                }
             }
         }
     }
@@ -76,12 +141,14 @@ impl StructGenerator<ConfigArgs> {
         let extend_args_fn = self.generate_extend_args_fn();
         let from_args_fn = self.generate_from_args_fn();
         let deserialize_fns = self.generate_deserialize_fns();
+        let merge_fns = self.generate_merge_fns(&opts_ident);
 
         quote! {
             #config
 
             impl #config_ident {
                 #deserialize_fns
+                #merge_fns
             }
 
             #[derive(::clap::Args)]
@@ -98,6 +165,42 @@ impl StructGenerator<ConfigArgs> {
             impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
+            }
+        }
+    }
+
+    /// Generates `merge_into_opts` on the `*Config` type.
+    fn generate_merge_fns(&self, opts_ident: &Ident) -> TokenStream {
+        // Only non-command, non-skipped fields participate in field-level merging.
+        let merge_fields: Vec<_> = self
+            .input
+            .fields()
+            .iter()
+            .filter(|f| f.commands().is_empty() && !GenerationTarget::Config.should_skip(*f))
+            .collect();
+
+        // Command fields in Args structs are always taken from the CLI value unchanged.
+        let command_fields: Vec<_> = self
+            .input
+            .fields()
+            .iter()
+            .filter(|f| !f.commands().is_empty())
+            .collect();
+
+        let merge_field_idents: Vec<_> = merge_fields.iter().map(|f| f.ident()).collect();
+        let command_field_idents: Vec<_> = command_fields.iter().map(|f| f.ident()).collect();
+
+        let merge_assignments = merge_field_idents.iter().map(|id| {
+            quote! { #id: __cli.#id.or(self.#id) }
+        });
+
+        quote! {
+            #[doc(hidden)]
+            pub fn merge_into_opts(self, __cli: #opts_ident) -> #opts_ident {
+                #opts_ident {
+                    #(#merge_assignments,)*
+                    #(#command_field_idents: __cli.#command_field_idents,)*
+                }
             }
         }
     }

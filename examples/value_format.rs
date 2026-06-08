@@ -23,12 +23,18 @@ struct DatabaseCli {
 }
 
 #[derive(Debug, Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Test {
         #[arg(long, value_parser = humantime::parse_duration)]
         #[config(value_format = humantime::format_duration)]
         duration: Duration,
+    },
+    Bench {
+        #[arg(long, value_parser = humantime::parse_duration)]
+        #[config(value_format = humantime::format_duration)]
+        interval: Duration,
+        #[arg(long)]
+        iterations: u32,
     },
 }
 
