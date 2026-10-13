@@ -12,7 +12,7 @@ pub mod format;
 
 use std::{
     ffi::{OsStr, OsString},
-    iter,
+    fs, iter,
     path::{Path, PathBuf},
 };
 
@@ -116,40 +116,50 @@ where
         let args = command.try_get_matches_from(args)?;
         let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
-        let config = opts.config_path().map(|path| {
-            let path = PathBuf::from(path);
+        let config: Option<Self::Config> = opts
+            .config_path()
+            .map(|path| {
+                let path = PathBuf::from(path);
 
-            if !path.exists() {
-                return Err(Self::command().error(ErrorKind::Io, "configuration file not found"));
-            }
-
-            let config = match opts.config_format() {
-                #[cfg(feature = "toml")]
-                Some(ConfigFormat::Toml) => Figment::from(Toml::file(path)),
-                #[cfg(feature = "yaml")]
-                Some(ConfigFormat::Yaml) => Figment::from(Yaml::file(path)),
-                #[cfg(feature = "json")]
-                Some(ConfigFormat::Json) => Figment::from(Json::file(path)),
-                _ => {
-                    return Err(Self::command().error(
-                        ErrorKind::InvalidValue,
-                        "unsupported configuration file".to_string(),
-                    ));
+                if !path.exists() {
+                    return Err(
+                        Self::command().error(ErrorKind::Io, "configuration file not found")
+                    );
                 }
-            };
 
-            config.extract::<Self::Config>().map_err(|e| {
-                Self::command().error(
-                    ErrorKind::InvalidValue,
-                    format!("invalid configuration file: {e}"),
-                )
+                let content = fs::read_to_string(path).map_err(|e| {
+                    Self::command().error(
+                        ErrorKind::Io,
+                        format!("failed to read configuration file: {e}"),
+                    )
+                })?;
+
+                match opts.config_format() {
+                    #[cfg(feature = "toml")]
+                    Some(ConfigFormat::Toml) => toml::from_str(&content).map_err(|e| e.to_string()),
+                    #[cfg(feature = "yaml")]
+                    Some(ConfigFormat::Yaml) => {
+                        noyalib::from_str_borrowing(&content).map_err(|e| e.to_string())
+                    }
+                    #[cfg(feature = "json")]
+                    Some(ConfigFormat::Json) => {
+                        serde_json::from_str(&content).map_err(|e| e.to_string())
+                    }
+                    _ => Err("unsupported format".to_string()),
+                }
+                .map_err(|e| {
+                    Self::command().error(
+                        ErrorKind::InvalidValue,
+                        format!("invalid configuration file: {e}"),
+                    )
+                })
             })
-        });
+            .transpose()?;
 
         let mut cli = Figment::from(Serialized::defaults(opts));
 
         if let Some(config) = config {
-            cli = cli.join(Serialized::defaults(config?));
+            cli = cli.join(Serialized::defaults(config));
         }
 
         let cli = cli
