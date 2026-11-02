@@ -5,7 +5,7 @@ on:
     branches: [main, develop]
     tags-ignore: [v*]
   pull_request:
-    branches: [develop]
+    branches: [main, develop]
 
 jobs:
   lint:
