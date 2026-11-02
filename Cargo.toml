@@ -37,7 +37,7 @@ figment = { version = "0.10.19" }
 serde = { version = "1.0.228", features = ["derive"] }
 toml = { version = "0.8.23", optional = true }
 serde_json = { version = "1.0.149", optional = true }
-noyalib = { version = "0.0.57", default-features = false, features = ["std"], optional = true }
+noyalib = { version = "0.0.58", default-features = false, features = ["std"], optional = true }
 
 [dev-dependencies]
 eyre = "0.6.12"
