@@ -103,7 +103,8 @@ impl<T: EnumLike> EnumGenerator<T> {
         (
             ident.clone(),
             quote! {
-                #[derive(Debug, ::serde::Serialize, ::serde::Deserialize)]
+                #[derive(Debug, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
+                #[serde(crate = "::clap_config_fallback::reexports::serde")]
                 pub enum #ident {
                     #(#variants,)*
                 }
@@ -131,7 +132,8 @@ impl<T: EnumLike> EnumGenerator<T> {
                     .then(|| quote! { #[serde(alias = #section_alias)] });
                 let section_struct = |fields: TokenStream| {
                     quote! {
-                        #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
+                        #[derive(Debug, Default, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
+                #[serde(crate = "::clap_config_fallback::reexports::serde")]
                         pub struct #section_ident {
                             #fields
                         }
@@ -185,7 +187,8 @@ impl<T: EnumLike> EnumGenerator<T> {
             quote! {
                 #(#section_structs)*
 
-                #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
+                #[derive(Debug, Default, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
+                #[serde(crate = "::clap_config_fallback::reexports::serde")]
                 #[allow(non_snake_case)]
                 #[serde(deny_unknown_fields)]
                 pub struct #ident {

@@ -127,7 +127,8 @@ impl<T: StructLike> StructGenerator<T> {
         (
             ident.clone(),
             quote! {
-                #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
+                #[derive(Debug, Default, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
+                #[serde(crate = "::clap_config_fallback::reexports::serde")]
                 pub struct #ident {
                     #(#fields),*
                 }

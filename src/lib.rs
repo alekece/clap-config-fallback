@@ -25,6 +25,14 @@ pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand
 
 pub use arg::{Arg, FromArgs, IntoArgs};
 
+/// Dependencies used by derive-generated code, so users do not have to depend on them directly.
+///
+/// Not part of the public API.
+#[doc(hidden)]
+pub mod reexports {
+    pub use serde;
+}
+
 /// Supported configuration file formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigFormat {

@@ -1,5 +1,5 @@
 [workspace]
-members = ["clap-config-fallback-derive"]
+members = ["clap-config-fallback-derive", "tests/no-serde"]
 resolver = "2"
 
 [workspace.package]
