@@ -150,6 +150,11 @@ where
         let mut config: Option<Self::Config> = opts
             .config_path()
             .map(|path| {
+                // With no format feature every format is rejected below, leaving `content` unused.
+                #[cfg_attr(
+                    not(any(feature = "toml", feature = "yaml", feature = "json")),
+                    allow(unused_variables)
+                )]
                 let content = fs::read_to_string(path).map_err(|e| {
                     Self::command().error(
                         ErrorKind::Io,
