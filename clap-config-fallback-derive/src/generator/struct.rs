@@ -17,6 +17,8 @@ pub trait StructLike {
     fn fields(&self) -> &[NamedField];
     /// Forwarded `#[command(...)]` attributes of the struct.
     fn attributes(&self) -> &[Attribute];
+    /// Name of the generated type for `target`.
+    fn generated_ident(&self, target: GenerationTarget) -> Ident;
     /// Casing clap applies to the struct's flags.
     fn rename_rule(&self) -> RenameRule;
 }
@@ -120,7 +122,7 @@ impl<T: StructLike> StructGenerator<T> {
     }
 
     fn generate_struct(&self, target: GenerationTarget) -> (Ident, TokenStream) {
-        let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
+        let ident = self.input.generated_ident(target);
         let fields = self
             .input
             .fields()

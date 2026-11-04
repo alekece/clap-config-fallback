@@ -6,6 +6,7 @@ mod config_precedence;
 mod config_subcommand;
 mod field;
 mod skippable;
+mod type_names;
 mod variant;
 
 pub use self::{
@@ -17,5 +18,6 @@ pub use self::{
     config_subcommand::ConfigSubcommand,
     field::{Field, NamedField},
     skippable::Skippable,
+    type_names::TypeNames,
     variant::{Variant, VariantShape},
 };

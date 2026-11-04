@@ -121,6 +121,10 @@ Use the config derive that matches the clap derive:
 | `Args`       | `ConfigArgs`       | Nested or flattened arg sets |
 | `Subcommand` | `ConfigSubcommand` | Subcommand enums             |
 
+Each derive also generates two public types next to yours, `<Name>Opts` and `<Name>Config`. If one
+of these names is already taken, rename them with
+`#[config(opts = "...", config = "...")]` (see below).
+
 ## Requirements
 
 - The root type must be a **named struct**, not an enum.
@@ -232,6 +236,8 @@ those appear in both tables.
 | ------------------------------- | -------------------------------- | ------------------------------------------------ |
 | `#[config(precedence = "...")]` | `ConfigParser`/`ConfigArgs` type | Sets fallback precedence for fields in that type |
 | `#[config(skip_all)]`           | struct or subcommand enum        | Excludes all contained fields or variants        |
+| `#[config(opts = "...")]`       | any config derive                | Renames the generated `<Name>Opts` type          |
+| `#[config(config = "...")]`     | any config derive                | Renames the generated `<Name>Config` type        |
 
 ### `#[config(path)]`
 
@@ -351,6 +357,22 @@ Resulting configuration:
 [database]
 host = "localhost"
 port = 5432
+```
+
+### `#[config(opts = "...")]` and `#[config(config = "...")]`
+
+Rename the generated types, for example when you already have a type called `CliConfig`. Either key
+may be used alone; the other type keeps its default name.
+
+```rust
+#[derive(Parser, ConfigParser)]
+#[config(opts = "CliOptions", config = "CliFile")]
+struct Cli {
+    #[arg(long)]
+    port: u16,
+}
+
+struct CliConfig; // your own type, no longer clashes
 ```
 
 ## License

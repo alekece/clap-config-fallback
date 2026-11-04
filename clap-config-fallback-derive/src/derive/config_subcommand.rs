@@ -2,8 +2,8 @@ use darling::{Error, FromDeriveInput, ast::Data, util::Ignored};
 use syn::{Attribute, Ident};
 
 use crate::{
-    derive::{ClapCommandAttr, RenameRule, Variant},
-    generator::EnumLike,
+    derive::{ClapCommandAttr, RenameRule, TypeNames, Variant},
+    generator::{EnumLike, GenerationTarget},
 };
 
 /// Parser for the `ConfigSubcommand` derive macro.
@@ -42,6 +42,8 @@ pub struct ConfigSubcommand {
     /// If `true`, all variants will be marked as skipped during generation.
     #[darling(default)]
     skip_all: bool,
+    #[darling(flatten)]
+    names: TypeNames,
     #[darling(skip)]
     command: ClapCommandAttr,
 }
@@ -64,6 +66,10 @@ impl EnumLike for ConfigSubcommand {
 
     fn rename_rule(&self) -> RenameRule {
         self.command.rename_all().unwrap_or_default()
+    }
+
+    fn generated_ident(&self, target: GenerationTarget) -> Ident {
+        self.names.ident(&self.ident, target)
     }
 }
 
