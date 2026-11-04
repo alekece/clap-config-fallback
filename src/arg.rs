@@ -89,19 +89,11 @@ where
     fn extend_args(self, args: &mut Vec<OsString>) {
         match self.value {
             ArgValue::Scalar(value) => {
-                if let Some(name) = self.name {
-                    args.push(name);
-                }
-
-                args.push(self.formatter.format(value));
+                args.push(join_value(self.name.as_ref(), self.formatter.format(value)));
             }
             ArgValue::Repeated(values) => {
                 for value in values {
-                    if let Some(name) = &self.name {
-                        args.push(name.clone());
-                    }
-
-                    args.push(self.formatter.format(value));
+                    args.push(join_value(self.name.as_ref(), self.formatter.format(value)));
                 }
             }
             ArgValue::Flag(value) => {
@@ -122,4 +114,19 @@ where
             value.extend_args(args);
         }
     }
+}
+
+/// Joins a named value into one `name=value` token.
+///
+/// A separate value token starting with `-` (such as `-5`) would be read by clap as a new flag.
+fn join_value(name: Option<&OsString>, value: OsString) -> OsString {
+    let Some(name) = name else {
+        return value;
+    };
+
+    let mut arg = name.clone();
+
+    arg.push("=");
+    arg.push(value);
+    arg
 }

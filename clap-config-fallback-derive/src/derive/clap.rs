@@ -1,7 +1,8 @@
 use darling::{Error, FromMeta, util::Override};
 use heck::ToKebabCase;
 use syn::{
-    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, parse_quote, punctuated::Punctuated,
+    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, ext::IdentExt, parse_quote,
+    punctuated::Punctuated,
 };
 
 use crate::syn_utils::ExprExt;
@@ -21,6 +22,9 @@ impl ClapCommand {
 /// Represents a shorthand for `clap` argument attributes.
 #[derive(Clone, FromMeta)]
 pub struct ClapArg {
+    /// Optional override for the clap argument id.
+    /// Only supports string literals.
+    id: Option<Result<LitStr, Error>>,
     /// Optional override for the short flag (e.g., `-d`).
     short: Option<Override<char>>,
     /// Optional override for the long flag (e.g., `--debug`).
@@ -42,6 +46,7 @@ pub struct ClapArg {
 impl Default for ClapArg {
     fn default() -> Self {
         Self {
+            id: None,
             short: None,
             long: None,
             alias: None,
@@ -69,6 +74,11 @@ impl ClapArg {
             .collect()
     }
 
+    /// Returns the explicit clap argument id if available.
+    pub fn id(&self) -> Option<String> {
+        self.id.clone()?.ok().map(|id| id.value())
+    }
+
     /// Returns the parsed `value_parser` expression path if available.
     pub fn value_parser(&self) -> Option<ExprPath> {
         self.value_parser.clone().transpose().unwrap_or_default()
@@ -83,6 +93,7 @@ impl ClapArg {
             return match short {
                 Override::Explicit(c) => Some(format!("-{c}")),
                 Override::Inherit => field_ident
+                    .unraw()
                     .to_string()
                     .chars()
                     .next()
@@ -93,7 +104,10 @@ impl ClapArg {
         if let Some(long) = &self.long {
             return match long {
                 Override::Explicit(s) => Some(format!("--{s}")),
-                Override::Inherit => Some(format!("--{}", field_ident.to_string().to_kebab_case())),
+                Override::Inherit => Some(format!(
+                    "--{}",
+                    field_ident.unraw().to_string().to_kebab_case()
+                )),
             };
         }
 

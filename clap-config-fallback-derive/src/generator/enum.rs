@@ -296,15 +296,16 @@ impl<T: EnumLike> EnumGenerator<T> {
                     }
                 },
                 VariantShape::Struct(fields) => {
-                    let (field_idents, field_statements): (Vec<_>, Vec<_>) = fields
-                        .iter()
-                        .map(|field| {
-                            (
-                                field.ident(),
-                                helpers::generate_extend_args_statement(&ident, field),
-                            )
-                        })
-                        .unzip();
+                    let (field_idents, field_statements): (Vec<_>, Vec<_>) =
+                        helpers::order_fields_for_args(&fields)
+                            .into_iter()
+                            .map(|field| {
+                                (
+                                    field.ident(),
+                                    helpers::generate_extend_args_statement(&ident, field),
+                                )
+                            })
+                            .unzip();
 
                     quote! {
                         Self::#variant_ident { #(#field_idents,)* } => {

@@ -175,10 +175,8 @@ impl<T: StructLike> StructGenerator<T> {
     fn generate_extend_args_fn(&self) -> TokenStream {
         let ident = format_ident!("__clap_arg");
         let field_idents = self.input.fields().iter().map(|field| field.ident());
-        let field_args = self
-            .input
-            .fields()
-            .iter()
+        let field_args = helpers::order_fields_for_args(self.input.fields())
+            .into_iter()
             .map(|field| helpers::generate_extend_args_statement(&ident, field));
 
         quote! {

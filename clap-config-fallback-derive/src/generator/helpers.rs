@@ -77,6 +77,7 @@ pub(crate) fn generate_field_definition(
 
 pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream {
     let field_ident = field.ident();
+    let arg_id = generate_arg_id(field);
 
     if !field.commands().is_empty() {
         let field_ty = field.ty().unwrap_option();
@@ -87,19 +88,46 @@ pub(crate) fn generate_from_args_initializer(field: &NamedField) -> TokenStream 
         }
     } else if field.ty().is("bool") {
         quote! {
-            #field_ident: args.get_flag(stringify!(#field_ident)).then_some(true)
+            #field_ident: args.get_flag(#arg_id).then_some(true)
         }
     } else if field.ty().unwrap_option().is("Vec") {
         quote! {
             #field_ident: args
-                .get_many(stringify!(#field_ident))
+                .get_many(#arg_id)
                 .map(|values| values.cloned().collect())
         }
     } else {
         quote! {
-            #field_ident: args.get_one(stringify!(#field_ident)).cloned()
+            #field_ident: args.get_one(#arg_id).cloned()
         }
     }
+}
+
+/// Returns the id clap gives the field's argument: the explicit `#[arg(id)]`, otherwise the field
+/// name without its `r#` prefix.
+fn generate_arg_id(field: &NamedField) -> String {
+    field
+        .args()
+        .iter()
+        .find_map(ClapArg::id)
+        .unwrap_or_else(|| field.ident().unraw().to_string())
+}
+
+/// Orders fields so their rebuilt args come before any subcommand name: clap rejects parent args
+/// that appear after it. Plain fields go first, flattened fields next, subcommands last.
+pub(crate) fn order_fields_for_args(fields: &[NamedField]) -> Vec<&NamedField> {
+    let mut fields = fields.iter().collect::<Vec<_>>();
+
+    fields.sort_by_key(|field| {
+        let commands = field.commands();
+
+        (
+            !commands.is_empty(),
+            commands.contains(&ClapCommand::Subcommand),
+        )
+    });
+
+    fields
 }
 
 pub(crate) fn generate_extend_args_statement(ident: &Ident, field: &NamedField) -> TokenStream {
