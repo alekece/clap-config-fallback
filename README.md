@@ -27,7 +27,7 @@ This crate keeps **clap as the single source of truth**:
 ```toml
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-clap-config-fallback = { version = "0.2", features = ["derive"] }
+clap-config-fallback = { version = "0.3", features = ["derive"] }
 ```
 
 Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled by default. You
@@ -137,6 +137,8 @@ of these names is already taken, rename them with
 - Type- and variant-level `#[command(...)]` attributes such as `rename_all` and `name` are honored.
   Subcommand sections follow the renamed CLI names; field keys keep the field name.
 - Config types must be `'static` (the derives always produce `'static` types).
+- Path arguments must be valid UTF-8. Values are merged through serde, which cannot represent
+  other paths, so `parse_with_config()` rejects them even without a config file.
 
 ## Configuration shape
 
