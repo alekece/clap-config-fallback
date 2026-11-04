@@ -1,9 +1,9 @@
 use darling::{Error, FromDeriveInput};
 use derive_more::Deref;
-use syn::Ident;
+use syn::{Attribute, Ident};
 
 use crate::{
-    derive::{ConfigParser, NamedField},
+    derive::{ConfigParser, NamedField, RenameRule},
     generator::StructLike,
 };
 
@@ -24,5 +24,13 @@ impl StructLike for ConfigArgs {
 
     fn fields(&self) -> &[NamedField] {
         self.0.fields()
+    }
+
+    fn attributes(&self) -> &[Attribute] {
+        self.0.attributes()
+    }
+
+    fn rename_rule(&self) -> RenameRule {
+        self.0.rename_rule()
     }
 }

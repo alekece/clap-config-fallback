@@ -3,20 +3,27 @@ use darling::{
     ast::{Data, Fields},
     util::Ignored,
 };
-use syn::Ident;
+use syn::{Attribute, Ident};
 
 use crate::{
-    derive::{ConfigPrecedence, NamedField},
+    derive::{ClapCommandAttr, ConfigPrecedence, NamedField, RenameRule},
     generator::StructLike,
 };
 
 /// Parser for the `ConfigParser` derive macro, extracting struct and field information along with
 /// custom attributes.
 #[derive(FromDeriveInput)]
-#[darling(attributes(config), supports(struct_named), and_then = Self::autocorrect)]
+#[darling(
+    attributes(config),
+    forward_attrs(command),
+    supports(struct_named),
+    and_then = Self::autocorrect
+)]
 pub struct ConfigParser {
     /// The identifier of the struct being derived.
     ident: Ident,
+    /// Forwarded `#[command(...)]` attributes of the struct.
+    attrs: Vec<Attribute>,
     /// The data of the struct, containing its fields and their attributes.
     data: Data<Ignored, NamedField>,
     /// Whether to skip all fields, making the configutation struct effectively empty.
@@ -24,6 +31,8 @@ pub struct ConfigParser {
     skip_all: bool,
     #[darling(default)]
     precedence: Option<ConfigPrecedence>,
+    #[darling(skip)]
+    command: ClapCommandAttr,
 }
 
 impl StructLike for ConfigParser {
@@ -37,11 +46,21 @@ impl StructLike for ConfigParser {
             Data::Enum(_) => unreachable!(),
         }
     }
+
+    fn attributes(&self) -> &[Attribute] {
+        &self.attrs
+    }
+
+    fn rename_rule(&self) -> RenameRule {
+        self.command.rename_all().unwrap_or_default()
+    }
 }
 
 impl ConfigParser {
-    /// Propagate the `skip_all` flag to all fields, marking them as skipped if `skip_all` is enabled.
+    /// Parses the naming items of `#[command(...)]` and propagates the `skip_all` flag to all fields, marking them as skipped if `skip_all` is enabled.
     fn autocorrect(mut self) -> Result<Self, Error> {
+        self.command = ClapCommandAttr::from_attrs(&self.attrs)?;
+
         match &mut self.data {
             Data::Struct(Fields { fields, .. }) => fields.iter_mut().for_each(|field| {
                 field.skip |= self.skip_all;

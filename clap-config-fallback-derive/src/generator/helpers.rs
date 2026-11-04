@@ -5,7 +5,7 @@ use syn::{Ident, ext::IdentExt};
 
 use crate::{
     ClapArg, TypeExt,
-    derive::{ClapCommand, ConfigPrecedence, NamedField},
+    derive::{ClapCommand, ConfigPrecedence, NamedField, RenameRule},
     generator::GenerationTarget,
     syn_utils::IntoTokenStream,
 };
@@ -114,9 +114,10 @@ fn generate_arg_id(field: &NamedField) -> String {
 }
 
 /// Returns the flag clap gives the field's argument, following clap's attribute order: an inherited
-/// `short`/`long` uses the id set by any earlier `id`.
-fn generate_flag_name(field: &NamedField) -> Option<String> {
-    let mut name = field.ident().unraw().to_string().to_kebab_case();
+/// `short`/`long` uses the id set by any earlier `id`, verbatim, and otherwise the field name cased
+/// by `rule`.
+fn generate_flag_name(field: &NamedField, rule: RenameRule) -> Option<String> {
+    let mut name = rule.apply(&field.ident().unraw().to_string());
 
     for arg in field.args() {
         if let Some(flag_name) = arg.flag_name(&name) {
@@ -131,7 +132,8 @@ fn generate_flag_name(field: &NamedField) -> Option<String> {
     None
 }
 
-/// Generates the statement pushing a field's args.
+/// Generates the statement pushing a field's args, with flags cased by `rule` like clap's
+/// `rename_all`.
 ///
 /// Subcommand args go to `commands` so callers can append them after every other arg: clap
 /// rejects parent args that follow a subcommand name. Other fields keep declaration order, which
@@ -140,6 +142,7 @@ pub(crate) fn generate_extend_args_statement(
     ident: &Ident,
     commands_ident: &Ident,
     field: &NamedField,
+    rule: RenameRule,
 ) -> TokenStream {
     let field_ident = field.ident();
 
@@ -152,7 +155,7 @@ pub(crate) fn generate_extend_args_statement(
             ::clap_config_fallback::IntoArgs::extend_args_split(#field_ident, #ident, #commands_ident);
         }
     } else {
-        let arg_name = generate_flag_name(field).map(|arg_name| quote! { .name(#arg_name) });
+        let arg_name = generate_flag_name(field, rule).map(|arg_name| quote! { .name(#arg_name) });
 
         let arg_formatter = field
             .value_format()

@@ -9,7 +9,7 @@ mod skippable;
 mod variant;
 
 pub use self::{
-    clap::{ClapArg, ClapCommand},
+    clap::{ClapArg, ClapCommand, ClapCommandAttr, RenameRule},
     config_args::ConfigArgs,
     config_format::ConfigFormat,
     config_parser::ConfigParser,

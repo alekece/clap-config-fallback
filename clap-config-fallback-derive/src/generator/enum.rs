@@ -1,10 +1,10 @@
-use heck::{ToKebabCase, ToSnakeCase};
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{Attribute, Ident};
 
 use crate::{
-    derive::{ConfigSubcommand, Variant, VariantShape},
+    derive::{ClapCommandAttr, ConfigSubcommand, RenameRule, Variant, VariantShape},
     generator::{GenerationTarget, helpers},
     syn_utils::IntoTokenStream,
 };
@@ -15,6 +15,10 @@ pub trait EnumLike {
     fn ident(&self) -> &Ident;
     /// Variant of the enum.
     fn variants(&self) -> &[Variant];
+    /// Forwarded `#[command(...)]` attributes of the enum.
+    fn attributes(&self) -> &[Attribute];
+    /// Casing clap applies to the variant names.
+    fn rename_rule(&self) -> RenameRule;
 }
 
 /// Generatates `Opts` and `Config` helper enums and impls for derive inputs.
@@ -69,10 +73,16 @@ impl<T: EnumLike> EnumGenerator<T> {
     fn generate_opts_enum(&self) -> (Ident, TokenStream) {
         let target = GenerationTarget::Opts;
         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
+        let rule = self.input.rename_rule();
         let variants = self.input.variants().iter().map(|variant| {
             let variant_ident = variant.ident();
             // must match the config section name so both sides merge
-            let variant_name = variant_ident.to_string().to_kebab_case();
+            let variant_name = variant.command_name(rule);
+            let variant_attrs = variant
+                .attributes()
+                .iter()
+                .map(ClapCommandAttr::sanitize)
+                .into_token_stream();
             let variant = match variant.shape() {
                 VariantShape::Unit => quote! { #variant_ident },
                 VariantShape::Newtype(ty) => {
@@ -96,15 +106,23 @@ impl<T: EnumLike> EnumGenerator<T> {
 
             quote! {
                 #[serde(rename = #variant_name)]
+                #variant_attrs
                 #variant
             }
         });
+        let command_attrs = self
+            .input
+            .attributes()
+            .iter()
+            .map(ClapCommandAttr::sanitize)
+            .into_token_stream();
 
         (
             ident.clone(),
             quote! {
                 #[derive(Debug, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
                 #[serde(crate = "::clap_config_fallback::reexports::serde")]
+                #command_attrs
                 pub enum #ident {
                     #(#variants,)*
                 }
@@ -117,6 +135,7 @@ impl<T: EnumLike> EnumGenerator<T> {
     fn generate_config_struct(&self) -> (Ident, TokenStream) {
         let target = GenerationTarget::Config;
         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
+        let rule = self.input.rename_rule();
         let (section_structs, sections): (Vec<_>, Vec<_>) = self
             .input
             .variants()
@@ -125,8 +144,8 @@ impl<T: EnumLike> EnumGenerator<T> {
             .map(|variant| {
                 let variant_ident = variant.ident();
                 let section_ident = format_ident!("{}{}", ident, variant_ident);
-                let section_name = variant_ident.to_string().to_kebab_case();
-                let section_alias = variant_ident.to_string().to_snake_case();
+                let section_name = variant.command_name(rule);
+                let section_alias = section_name.to_snake_case();
                 // config files may spell multi-word sections either way
                 let section_alias_attr = (section_alias != section_name)
                     .then(|| quote! { #[serde(alias = #section_alias)] });
@@ -281,9 +300,11 @@ impl<T: EnumLike> EnumGenerator<T> {
 
     fn generate_extend_args_fn(&self) -> TokenStream {
         let ident = format_ident!("__clap_args");
+        let rule = self.input.rename_rule();
         let variant_matches = self.input.variants().iter().map(|variant| {
             let variant_ident = variant.ident();
-            let formatted_variant = variant_ident.to_string().to_kebab_case();
+            let formatted_variant = variant.command_name(rule);
+            let field_rule = variant.rename_rule(rule);
             let variant_arg = quote! {
                 ::clap_config_fallback::Arg::scalar(#formatted_variant).extend_args(#ident)
             };
@@ -309,6 +330,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                                     &ident,
                                     &commands_ident,
                                     field,
+                                    field_rule,
                                 ),
                             )
                         })
@@ -339,9 +361,10 @@ impl<T: EnumLike> EnumGenerator<T> {
     }
 
     fn generate_from_args_fn(&self) -> TokenStream {
+        let rule = self.input.rename_rule();
         let variant_matches = self.input.variants().iter().map(|variant| {
             let ident = variant.ident();
-            let formatted_variant = ident.to_string().to_kebab_case();
+            let formatted_variant = variant.command_name(rule);
 
             match variant.shape() {
                 VariantShape::Unit => quote! {

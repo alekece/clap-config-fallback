@@ -1,5 +1,9 @@
 use darling::{Error, FromMeta, util::Override};
-use syn::{Attribute, Expr, ExprPath, LitStr, Meta, Token, parse_quote, punctuated::Punctuated};
+use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
+use syn::{
+    Attribute, Expr, ExprLit, ExprPath, Ident, Lit, LitStr, Meta, Token, parse_quote,
+    punctuated::Punctuated,
+};
 
 use crate::syn_utils::ExprExt;
 
@@ -9,9 +13,147 @@ pub enum ClapCommand {
     Subcommand,
 }
 
+/// Casing clap applies to derived names, set with `#[command(rename_all = "...")]`.
+#[derive(Copy, Clone, Default, PartialEq, Eq)]
+pub enum RenameRule {
+    Camel,
+    #[default]
+    Kebab,
+    Pascal,
+    ScreamingSnake,
+    Snake,
+    Lower,
+    Upper,
+    Verbatim,
+}
+
+/// The type- or variant-level `#[command(...)]` items that change the names clap derives.
+#[derive(Clone, Default)]
+pub struct ClapCommandAttr {
+    name: Option<String>,
+    rename_all: Option<RenameRule>,
+}
+
 impl ClapCommand {
     pub fn from_attr(attr: &Attribute) -> Option<Self> {
         Self::from_meta(&attr.meta).ok()
+    }
+}
+
+impl RenameRule {
+    /// Parses clap's spelling of a casing, e.g. `"kebab-case"`.
+    fn parse(value: &str) -> Option<Self> {
+        let rule = match value {
+            "camelCase" => Self::Camel,
+            "kebab-case" => Self::Kebab,
+            "PascalCase" => Self::Pascal,
+            "SCREAMING_SNAKE_CASE" => Self::ScreamingSnake,
+            "snake_case" => Self::Snake,
+            "lower" => Self::Lower,
+            "UPPER" => Self::Upper,
+            "verbatim" => Self::Verbatim,
+            _ => return None,
+        };
+
+        Some(rule)
+    }
+
+    /// Converts a Rust identifier to the name clap derives from it.
+    pub fn apply(self, name: &str) -> String {
+        match self {
+            Self::Camel => name.to_lower_camel_case(),
+            Self::Kebab => name.to_kebab_case(),
+            Self::Pascal => name.to_upper_camel_case(),
+            Self::ScreamingSnake => name.to_shouty_snake_case(),
+            Self::Snake => name.to_snake_case(),
+            Self::Lower => name.to_lowercase(),
+            Self::Upper => name.to_uppercase(),
+            Self::Verbatim => name.to_owned(),
+        }
+    }
+}
+
+impl ClapCommandAttr {
+    /// Collects `name` and `rename_all` from `#[command(...)]` attributes, ignoring other items.
+    /// A later value overrides an earlier one, as in clap.
+    ///
+    /// Only string literals are supported: generated code must know these names at compile time to
+    /// produce matching arguments and config sections.
+    pub fn from_attrs(attrs: &[Attribute]) -> Result<Self, Error> {
+        let mut command = Self::default();
+        let mut error = Error::accumulator();
+
+        for attr in attrs.iter().filter(|attr| attr.path().is_ident("command")) {
+            for expr in ClapArg::parse_items(attr).unwrap_or_default() {
+                let Expr::Assign(assign) = &expr else {
+                    continue;
+                };
+
+                let Some(key) = expr.ident().map(Ident::to_string) else {
+                    continue;
+                };
+
+                if key != "name" && key != "rename_all" {
+                    continue;
+                }
+
+                let value = match &*assign.right {
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(value),
+                        ..
+                    }) => value,
+                    right => {
+                        error.push(
+                            Error::custom(format!(
+                                "`{key}` must be a string literal to be used with config fallback"
+                            ))
+                            .with_span(right),
+                        );
+
+                        continue;
+                    }
+                };
+
+                if key == "name" {
+                    command.name = Some(value.value());
+                } else if let Some(rule) = RenameRule::parse(&value.value()) {
+                    command.rename_all = Some(rule);
+                } else {
+                    error.push(Error::custom("unsupported `rename_all` value").with_span(value));
+                }
+            }
+        }
+
+        error.finish_with(command)
+    }
+
+    /// Returns the explicit command name, if any.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Returns the explicit casing, if any.
+    pub fn rename_all(&self) -> Option<RenameRule> {
+        self.rename_all
+    }
+
+    /// Removes items that must not apply to the first, all-optional parse: a run that relies on
+    /// config values would otherwise stop at the help screen.
+    pub fn sanitize(attr: &Attribute) -> Attribute {
+        let Some(items) = ClapArg::parse_items(attr).filter(|_| attr.path().is_ident("command"))
+        else {
+            return attr.clone();
+        };
+
+        let items: Punctuated<Expr, Token![,]> = items
+            .into_iter()
+            .filter(|expr| {
+                expr.ident()
+                    .is_none_or(|ident| ident != "arg_required_else_help")
+            })
+            .collect();
+
+        parse_quote!(#[command(#items)])
     }
 }
 
