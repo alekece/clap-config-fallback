@@ -147,11 +147,23 @@ in snake_case or kebab-case (`max_connections` or `max-connections`), but not bo
 
 A `#[command(flatten)]` field is flattened in config:
 
-```rust,ignore
+```rust
+use clap::{Args, Parser};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
+
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(flatten)]
     database: DatabaseArgs,
+}
+
+#[derive(Args, ConfigArgs)]
+struct DatabaseArgs {
+    #[arg(long)]
+    host: String,
+
+    #[arg(long)]
+    port: u16,
 }
 ```
 
@@ -162,12 +174,24 @@ port = 5432
 
 Add `#[config(no_flatten)]` to keep a nested section instead:
 
-```rust,ignore
+```rust
+use clap::{Args, Parser};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
+
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(flatten)]
     #[config(no_flatten)]
     database: DatabaseArgs,
+}
+
+#[derive(Args, ConfigArgs)]
+struct DatabaseArgs {
+    #[arg(long)]
+    host: String,
+
+    #[arg(long)]
+    port: u16,
 }
 ```
 
@@ -308,7 +332,10 @@ port: u16,
 
 Use `skip_all` to exclude all fields or variants in the current type:
 
-```rust,ignore
+```rust
+use clap::Parser;
+use clap_config_fallback::ConfigParser;
+
 #[derive(Parser, ConfigParser)]
 #[config(skip_all)]
 struct Cli {
@@ -335,35 +362,30 @@ deserialization only; they do not change CLI flags or subcommand names.
 Aliases are meaningful for subcommand fields and for flattened fields marked with
 `#[config(no_flatten)]`. They are not allowed on fields that are flattened in config.
 
-```rust,ignore
+```rust
+use clap::{Parser, Subcommand};
+use clap_config_fallback::{ConfigParser, ConfigSubcommand};
+
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(subcommand)]
     #[config(alias = "cmd")]
     command: Command,
 }
+
+#[derive(Subcommand, ConfigSubcommand)]
+enum Command {
+    Serve {
+        #[arg(long)]
+        workers: u16,
+    },
+}
 ```
 
 ### `#[config(no_flatten)]`
 
-Prevents a `#[command(flatten)]` field from being flattened in configuration.
-
-```rust,ignore
-#[derive(Parser, ConfigParser)]
-struct Cli {
-    #[command(flatten)]
-    #[config(no_flatten)]
-    database: DatabaseArgs,
-}
-```
-
-Resulting configuration:
-
-```toml
-[database]
-host = "localhost"
-port = 5432
-```
+Prevents a `#[command(flatten)]` field from being flattened in configuration, so it keeps its own
+section. See "Flattened args" above for an example.
 
 ### `#[config(opts = "...")]` and `#[config(config = "...")]`
 
