@@ -13,7 +13,7 @@ pub mod format;
 use std::{
     ffi::{OsStr, OsString},
     fs, iter,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use clap::{CommandFactory, Error, Parser, error::ErrorKind};
@@ -71,7 +71,9 @@ pub trait ConfigFallback {
     /// Intermediate optional representation used during merge.
     type Opts: Serialize + DeserializeOwned + IntoArgs + FromArgs;
     /// Config-only representation loaded from file.
-    type Config: Serialize + DeserializeOwned;
+    ///
+    /// It must be `'static` so YAML errors can report line and column.
+    type Config: Serialize + DeserializeOwned + 'static;
 
     /// Drops config sections of subcommands that were not selected on the CLI.
     ///
@@ -142,27 +144,36 @@ where
         let mut config: Option<Self::Config> = opts
             .config_path()
             .map(|path| {
-                let path = PathBuf::from(path);
-
-                if !path.exists() {
-                    return Err(
-                        Self::command().error(ErrorKind::Io, "configuration file not found")
-                    );
-                }
-
                 let content = fs::read_to_string(path).map_err(|e| {
                     Self::command().error(
                         ErrorKind::Io,
-                        format!("failed to read configuration file: {e}"),
+                        format!("failed to read configuration file {}: {e}", path.display()),
                     )
                 })?;
 
                 match opts.config_format() {
                     #[cfg(feature = "toml")]
-                    Some(ConfigFormat::Toml) => toml::from_str(&content).map_err(|e| e.to_string()),
+                    Some(ConfigFormat::Toml) => toml::from_str(&content).map_err(|e| {
+                        // toml's `Display` quotes the offending line, which may hold a secret
+                        let Some(span) = e.span() else {
+                            return e.message().to_owned();
+                        };
+
+                        let before = &content[..span.start];
+                        let line = before.matches('\n').count() + 1;
+                        let column = before
+                            .rsplit('\n')
+                            .next()
+                            .unwrap_or_default()
+                            .chars()
+                            .count()
+                            + 1;
+
+                        format!("line {line}, column {column}: {}", e.message())
+                    }),
                     #[cfg(feature = "yaml")]
                     Some(ConfigFormat::Yaml) => {
-                        noyalib::from_str_borrowing(&content).map_err(|e| e.to_string())
+                        noyalib::from_str(&content).map_err(|e| e.to_string())
                     }
                     #[cfg(feature = "json")]
                     Some(ConfigFormat::Json) => {
@@ -173,7 +184,7 @@ where
                 .map_err(|e| {
                     Self::command().error(
                         ErrorKind::InvalidValue,
-                        format!("invalid configuration file: {e}"),
+                        format!("invalid configuration file {}: {e}", path.display()),
                     )
                 })
             })
