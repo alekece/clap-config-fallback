@@ -1,0 +1,5 @@
+error: tuple enums are not supported
+ --> tests/ui/tuple_variant.rs:5:5
+  |
+5 |     Copy(String, String),
+  |     ^^^^

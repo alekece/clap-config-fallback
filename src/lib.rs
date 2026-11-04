@@ -1,13 +1,12 @@
-//! `clap-config-fallback` extends clap with configuration-file fallback while preserving clap as
-//! the final parser/validator.
-//!
-//! Typical flow:
-//! 1. Parse CLI args into an optional intermediate struct.
-//! 2. Load config values from `#[config(path)]` (if provided).
-//! 3. Merge with precedence `CLI > config`.
-//! 4. Re-run clap on reconstructed arguments for final validation.
+// README examples use the derives, so the README is the crate docs only when they are available.
+#![cfg_attr(feature = "derive", doc = include_str!("../README.md"))]
+#![cfg_attr(
+    not(feature = "derive"),
+    doc = "Configuration-file fallback for clap. See the README for usage."
+)]
 
 mod arg;
+#[doc(hidden)]
 pub mod format;
 
 use std::{
@@ -23,6 +22,7 @@ use serde::{Serialize, de::DeserializeOwned};
 #[cfg(feature = "derive")]
 pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand};
 
+#[doc(hidden)]
 pub use arg::{Arg, FromArgs, IntoArgs};
 
 /// Dependencies used by derive-generated code, so users do not have to depend on them directly.
@@ -35,6 +35,7 @@ pub mod reexports {
 
 /// Supported configuration file formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ConfigFormat {
     Toml,
     Yaml,
@@ -67,6 +68,9 @@ pub trait ConfigSource {
 }
 
 /// Defines the associated types for config fallback parsing.
+///
+/// Implemented by the derives; not part of the public API.
+#[doc(hidden)]
 pub trait ConfigFallback {
     /// Intermediate optional representation used during merge.
     type Opts: Serialize + DeserializeOwned + IntoArgs + FromArgs;
@@ -144,6 +148,11 @@ where
         let mut config: Option<Self::Config> = opts
             .config_path()
             .map(|path| {
+                // With no format feature every format is rejected below, leaving `content` unused.
+                #[cfg_attr(
+                    not(any(feature = "toml", feature = "yaml", feature = "json")),
+                    allow(unused_variables)
+                )]
                 let content = fs::read_to_string(path).map_err(|e| {
                     Self::command().error(
                         ErrorKind::Io,

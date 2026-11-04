@@ -1,0 +1,5 @@
+error: `name` must be a string literal to be used with config fallback
+ --> tests/ui/non_literal_name.rs:7:18
+  |
+7 | #[command(name = NAME)]
+  |                  ^^^^

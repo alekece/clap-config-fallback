@@ -1,0 +1,5 @@
+error: #[config(alias, aliases)] can only be used on fields with `#[command]` attributes
+ --> tests/ui/alias_without_command.rs:8:5
+  |
+8 |     port: u16,
+  |     ^^^^

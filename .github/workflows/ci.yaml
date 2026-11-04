@@ -68,9 +68,48 @@ jobs:
       - name: Verify MSRV
         run: cargo msrv verify -- cargo check --workspace --all-targets --all-features --locked
 
+  features:
+    name: Feature combinations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
+      - name: Check every feature combination
+        run: cargo hack check --feature-powerset --lib -p clap-config-fallback --locked
+        env:
+          RUSTFLAGS: -D warnings
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Build docs
+        run: cargo doc --workspace --no-deps --all-features --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
   build:
     name: Build
-    needs: [lint, deny, msrv]
+    needs: [lint, deny, msrv, features, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

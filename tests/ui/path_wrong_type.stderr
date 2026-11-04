@@ -1,0 +1,5 @@
+error: `#[config(path)]` requires a field of type `String` or `PathBuf`
+ --> tests/ui/path_wrong_type.rs:8:5
+  |
+8 |     config: u16,
+  |     ^^^^^^

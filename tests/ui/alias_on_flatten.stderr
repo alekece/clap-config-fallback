@@ -1,0 +1,5 @@
+error: #[config(alias, aliases)] can only be used on non-flatten fields
+ --> tests/ui/alias_on_flatten.rs:8:5
+  |
+8 |     database: Database,
+  |     ^^^^^^^^
