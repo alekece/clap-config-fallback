@@ -17,6 +17,15 @@ pub trait IntoArgs: Sized {
     }
 
     fn extend_args(self, args: &mut Vec<OsString>);
+
+    /// Like [`IntoArgs::extend_args`], but pushes subcommand args to `commands` so the caller can
+    /// emit them after all other args.
+    #[doc(hidden)]
+    fn extend_args_split(self, args: &mut Vec<OsString>, commands: &mut Vec<OsString>) {
+        let _ = commands;
+
+        self.extend_args(args);
+    }
 }
 
 /// Builds an intermediate options struct from clap `ArgMatches`.
@@ -112,6 +121,12 @@ where
     fn extend_args(self, args: &mut Vec<OsString>) {
         if let Some(value) = self {
             value.extend_args(args);
+        }
+    }
+
+    fn extend_args_split(self, args: &mut Vec<OsString>, commands: &mut Vec<OsString>) {
+        if let Some(value) = self {
+            value.extend_args_split(args, commands);
         }
     }
 }

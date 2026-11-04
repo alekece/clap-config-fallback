@@ -113,36 +113,46 @@ fn generate_arg_id(field: &NamedField) -> String {
         .unwrap_or_else(|| field.ident().unraw().to_string())
 }
 
-/// Orders fields so their rebuilt args come before any subcommand name: clap rejects parent args
-/// that appear after it. Plain fields go first, flattened fields next, subcommands last.
-pub(crate) fn order_fields_for_args(fields: &[NamedField]) -> Vec<&NamedField> {
-    let mut fields = fields.iter().collect::<Vec<_>>();
+/// Returns the flag clap gives the field's argument, following clap's attribute order: an inherited
+/// `short`/`long` uses the id set by any earlier `id`.
+fn generate_flag_name(field: &NamedField) -> Option<String> {
+    let mut name = field.ident().unraw().to_string().to_kebab_case();
 
-    fields.sort_by_key(|field| {
-        let commands = field.commands();
+    for arg in field.args() {
+        if let Some(flag_name) = arg.flag_name(&name) {
+            return Some(flag_name);
+        }
 
-        (
-            !commands.is_empty(),
-            commands.contains(&ClapCommand::Subcommand),
-        )
-    });
+        if let Some(id) = arg.id() {
+            name = id;
+        }
+    }
 
-    fields
+    None
 }
 
-pub(crate) fn generate_extend_args_statement(ident: &Ident, field: &NamedField) -> TokenStream {
+/// Generates the statement pushing a field's args.
+///
+/// Subcommand args go to `commands` so callers can append them after every other arg: clap
+/// rejects parent args that follow a subcommand name. Other fields keep declaration order, which
+/// clap uses to number positional args.
+pub(crate) fn generate_extend_args_statement(
+    ident: &Ident,
+    commands_ident: &Ident,
+    field: &NamedField,
+) -> TokenStream {
     let field_ident = field.ident();
 
-    if !field.commands().is_empty() {
+    if field.commands().contains(&ClapCommand::Subcommand) {
         quote! {
-            #field_ident.extend_args(#ident);
+            ::clap_config_fallback::IntoArgs::extend_args(#field_ident, #commands_ident);
+        }
+    } else if !field.commands().is_empty() {
+        quote! {
+            ::clap_config_fallback::IntoArgs::extend_args_split(#field_ident, #ident, #commands_ident);
         }
     } else {
-        let arg_name = field
-            .args()
-            .iter()
-            .find_map(|arg| arg.flag_name(field_ident))
-            .map(|arg_name| quote! { .name(#arg_name) });
+        let arg_name = generate_flag_name(field).map(|arg_name| quote! { .name(#arg_name) });
 
         let arg_formatter = field
             .value_format()

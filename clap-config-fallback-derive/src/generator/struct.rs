@@ -174,13 +174,26 @@ impl<T: StructLike> StructGenerator<T> {
 
     fn generate_extend_args_fn(&self) -> TokenStream {
         let ident = format_ident!("__clap_arg");
+        let commands_ident = format_ident!("__clap_commands");
         let field_idents = self.input.fields().iter().map(|field| field.ident());
-        let field_args = helpers::order_fields_for_args(self.input.fields())
-            .into_iter()
-            .map(|field| helpers::generate_extend_args_statement(&ident, field));
+        let field_args =
+            self.input.fields().iter().map(|field| {
+                helpers::generate_extend_args_statement(&ident, &commands_ident, field)
+            });
 
         quote! {
             fn extend_args(self, #ident: &mut ::std::vec::Vec<::std::ffi::OsString>) {
+                let mut #commands_ident = ::std::vec::Vec::new();
+
+                ::clap_config_fallback::IntoArgs::extend_args_split(self, #ident, &mut #commands_ident);
+                #ident.append(&mut #commands_ident);
+            }
+
+            fn extend_args_split(
+                self,
+                #ident: &mut ::std::vec::Vec<::std::ffi::OsString>,
+                #commands_ident: &mut ::std::vec::Vec<::std::ffi::OsString>,
+            ) {
                 #(let #field_idents = self.#field_idents;)*
 
                 #(#field_args)*

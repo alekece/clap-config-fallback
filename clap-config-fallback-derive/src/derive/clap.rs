@@ -1,8 +1,6 @@
 use darling::{Error, FromMeta, util::Override};
-use heck::ToKebabCase;
 use syn::{
-    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, ext::IdentExt, parse_quote,
-    punctuated::Punctuated,
+    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, parse_quote, punctuated::Punctuated,
 };
 
 use crate::syn_utils::ExprExt;
@@ -41,6 +39,10 @@ pub struct ClapArg {
     #[allow(dead_code)]
     #[darling(flatten)]
     ignored_args: Result<(), Error>,
+    /// Whether `id` comes before `short`/`long` in the attribute, in which case clap derives the
+    /// inherited flag names from the id rather than the field name.
+    #[darling(skip)]
+    id_before_flags: bool,
 }
 
 impl Default for ClapArg {
@@ -53,6 +55,7 @@ impl Default for ClapArg {
             aliases: None,
             value_parser: None,
             ignored_args: Ok(()),
+            id_before_flags: false,
         }
     }
 }
@@ -61,7 +64,20 @@ impl ClapArg {
     /// Creates a `ClapArgAttribute` from an `Attribute`, extracting relevant information from its
     /// meta.
     pub fn from_attr(attr: &Attribute) -> Option<Self> {
-        Self::from_meta(&attr.meta).ok()
+        let mut arg = Self::from_meta(&attr.meta).ok()?;
+        let names = parse_arg_names(attr);
+        let position = |wanted: &[&str]| {
+            names
+                .iter()
+                .position(|name| wanted.contains(&name.as_str()))
+        };
+
+        arg.id_before_flags = matches!(
+            (position(&["id"]), position(&["short", "long"])),
+            (Some(id), Some(flag)) if id < flag
+        );
+
+        Some(arg)
     }
 
     /// Returns a vector of all aliases for this argument, combining both `alias` and `aliases` fields.
@@ -84,30 +100,27 @@ impl ClapArg {
         self.value_parser.clone().transpose().unwrap_or_default()
     }
 
-    /// Generates the appropriate short or long flag for this argument based on the provided field
+    /// Generates the appropriate short or long flag for this argument, inheriting from `name` (the
+    /// name clap derives so far: the kebab-case field name or an explicit id) when the flag has no
+    /// explicit value.
     ///
     /// Note that if both `short` and `long` are specified, `short` will take precedence for
     /// generating the flag
-    pub fn flag_name(&self, field_ident: &Ident) -> Option<String> {
+    pub fn flag_name(&self, name: &str) -> Option<String> {
+        let id = self.id_before_flags.then(|| self.id()).flatten();
+        let name = id.as_deref().unwrap_or(name);
+
         if let Some(short) = &self.short {
             return match short {
                 Override::Explicit(c) => Some(format!("-{c}")),
-                Override::Inherit => field_ident
-                    .unraw()
-                    .to_string()
-                    .chars()
-                    .next()
-                    .map(|c| format!("-{}", c.to_lowercase())),
+                Override::Inherit => name.chars().next().map(|c| format!("-{c}")),
             };
         }
 
         if let Some(long) = &self.long {
             return match long {
                 Override::Explicit(s) => Some(format!("--{s}")),
-                Override::Inherit => Some(format!(
-                    "--{}",
-                    field_ident.unraw().to_string().to_kebab_case()
-                )),
+                Override::Inherit => Some(format!("--{name}")),
             };
         }
 
@@ -141,4 +154,19 @@ impl ClapArg {
             attr.clone()
         }
     }
+}
+
+/// Returns the names of the `#[arg(...)]` items in order, such as `["id", "long"]`.
+fn parse_arg_names(attr: &Attribute) -> Vec<String> {
+    let Meta::List(list) = &attr.meta else {
+        return Vec::new();
+    };
+
+    list.parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
+        .map(|args| {
+            args.iter()
+                .filter_map(|expr| expr.ident().map(Ident::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
 }
