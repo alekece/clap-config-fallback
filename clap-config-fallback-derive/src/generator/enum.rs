@@ -296,21 +296,30 @@ impl<T: EnumLike> EnumGenerator<T> {
                     }
                 },
                 VariantShape::Struct(fields) => {
+                    let commands_ident = format_ident!("__clap_commands");
                     let (field_idents, field_statements): (Vec<_>, Vec<_>) = fields
                         .iter()
                         .map(|field| {
                             (
                                 field.ident(),
-                                helpers::generate_extend_args_statement(&ident, field),
+                                helpers::generate_extend_args_statement(
+                                    &ident,
+                                    &commands_ident,
+                                    field,
+                                ),
                             )
                         })
                         .unzip();
 
                     quote! {
                         Self::#variant_ident { #(#field_idents,)* } => {
+                            let #commands_ident = &mut ::std::vec::Vec::new();
+
                             #variant_arg;
 
                             #(#field_statements)*
+
+                            #ident.append(#commands_ident);
                         }
                     }
                 }

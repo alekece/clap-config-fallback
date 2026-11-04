@@ -8,19 +8,7 @@
       "duration": "5s"
     }
   },
-  "server": {
-    "url": "http://localhost:8080",
-    "request_timeout": "30s",
-    "tls": {
-      "enabled": true,
-      "cert_path": "./certs/prod.pem"
-    }
-  },
-  "database": {
-    "url": "postgres://user:password@localhost:5432/mydb",
-    "pool": {
-      "max_connections": 100,
-      "timeout": "30s"
-    }
-  }
+  "url": "postgres://user:password@localhost:5432/mydb",
+  "max_connections": 100,
+  "timeout": "30s"
 }
