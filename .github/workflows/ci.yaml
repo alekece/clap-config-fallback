@@ -48,9 +48,29 @@ jobs:
       - name: Run cargo deny
         run: cargo deny check
 
+  msrv:
+    name: MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Install cargo-msrv
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-msrv@0.19.6
+
+      - name: Verify MSRV
+        run: cargo msrv verify -- cargo check --workspace --all-targets --all-features --locked
+
   build:
     name: Build
-    needs: [lint, deny]
+    needs: [lint, deny, msrv]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
