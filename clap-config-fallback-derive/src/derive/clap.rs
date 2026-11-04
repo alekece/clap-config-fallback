@@ -1,7 +1,5 @@
 use darling::{Error, FromMeta, util::Override};
-use syn::{
-    Attribute, Expr, ExprPath, Ident, LitStr, Meta, Token, parse_quote, punctuated::Punctuated,
-};
+use syn::{Attribute, Expr, ExprPath, LitStr, Meta, Token, parse_quote, punctuated::Punctuated};
 
 use crate::syn_utils::ExprExt;
 
@@ -72,8 +70,12 @@ impl ClapArg {
     /// meta.
     pub fn from_attr(attr: &Attribute) -> Option<Self> {
         let mut arg = Self::from_meta(&attr.meta).ok()?;
-        let names = parse_arg_names(attr);
-        let position = |wanted: &str| names.iter().position(|name| name == wanted);
+        let items = Self::parse_items(attr).unwrap_or_default();
+        let position = |wanted: &str| {
+            items
+                .iter()
+                .position(|expr| expr.ident().is_some_and(|ident| ident == wanted))
+        };
         let id_position = position("id").or_else(|| position("name"));
         let id_before = |flag: &str| {
             matches!(
@@ -151,10 +153,7 @@ impl ClapArg {
     /// optional argument.
     pub fn sanitize(attr: &Attribute, denied_args: &[&str]) -> Attribute {
         if attr.path().is_ident("arg")
-            && let Meta::List(list) = &attr.meta
-            && let Some(args) = list
-                .parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-                .ok()
+            && let Some(args) = Self::parse_items(attr)
         {
             let sanitized_attrs: Punctuated<Expr, Token![,]> = args
                 .into_iter()
@@ -174,19 +173,14 @@ impl ClapArg {
             attr.clone()
         }
     }
-}
 
-/// Returns the names of the `#[arg(...)]` items in order, such as `["id", "long"]`.
-fn parse_arg_names(attr: &Attribute) -> Vec<String> {
-    let Meta::List(list) = &attr.meta else {
-        return Vec::new();
-    };
+    /// Parses the comma-separated items of a list attribute such as `#[arg(id = "x", long)]`, in
+    /// declaration order.
+    fn parse_items(attr: &Attribute) -> Option<Punctuated<Expr, Token![,]>> {
+        let Meta::List(list) = &attr.meta else {
+            return None;
+        };
 
-    list.parse_args_with(Punctuated::<Expr, Token![,]>::parse_terminated)
-        .map(|args| {
-            args.iter()
-                .filter_map(|expr| expr.ident().map(Ident::to_string))
-                .collect()
-        })
-        .unwrap_or_default()
+        list.parse_args_with(Punctuated::parse_terminated).ok()
+    }
 }
