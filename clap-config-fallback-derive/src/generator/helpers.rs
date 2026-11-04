@@ -27,6 +27,15 @@ pub(crate) fn generate_field_definition(
             GenerationTarget::Config => generate_serde_alias_attrs(field),
         };
 
+        if field.flatten() && matches!(target, GenerationTarget::Config) {
+            // serde turns any error inside a flattened `Option` into `None`, which would silently
+            // drop invalid config instead of reporting it
+            return quote! {
+                #[serde(flatten, default)]
+                #field_ident: <#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident
+            };
+        }
+
         return quote! {
             #field_attrs
             #flatten_attr
@@ -161,8 +170,19 @@ pub(crate) fn generate_retain_commands_statement(
                 (__clap_field_config, _) => *__clap_field_config = ::std::option::Option::None,
             }
         }
-    } else {
+    } else if field.flatten() {
         // flattened args without CLI values may still hold subcommands to prune
+        quote! {
+            match #opts {
+                ::std::option::Option::Some(__clap_field_opts) => {
+                    #retain_fn(&mut #config.#field_ident, __clap_field_opts)
+                }
+                ::std::option::Option::None => {
+                    #retain_fn(&mut #config.#field_ident, &::std::default::Default::default())
+                }
+            }
+        }
+    } else {
         quote! {
             if let ::std::option::Option::Some(__clap_field_config) = &mut #config.#field_ident {
                 match #opts {
