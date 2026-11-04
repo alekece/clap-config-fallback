@@ -30,7 +30,8 @@ clap = { version = "4", features = ["derive"] }
 clap-config-fallback = { version = "0.2", features = ["derive"] }
 ```
 
-Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled by default.
+Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled by default. You
+don't need to add `serde` yourself.
 
 ## How to use it
 
@@ -129,6 +130,9 @@ Use the config derive that matches the clap derive:
 - Nested flattened structs must derive `ConfigArgs`.
 - `#[command(flatten)]` is flattened in config too, unless you add `#[config(no_flatten)]`.
 - Subcommands are selected on the CLI only; config holds one optional section per subcommand.
+- Type- and variant-level `#[command(...)]` attributes such as `rename_all` and `name` are honored,
+  and config keys follow the renamed CLI names.
+- Config types must be `'static` (the derives always produce `'static` types).
 
 ## Configuration shape
 
@@ -187,7 +191,8 @@ logging = true
 ```
 
 Section names are the command names used on the CLI (`DryRun` is `[command.dry-run]`, or
-`[command.dry_run]`).
+`[command.dry_run]`). A variant renamed with `#[command(name = "...")]` uses that name as its
+section.
 Running `app build server` uses the `build` and `server` sections, `app run` uses the `run` section,
 and `app` alone fails with clap's usual missing-subcommand error. Unit variants have no parameters
 and need no section.
