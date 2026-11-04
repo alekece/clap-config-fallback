@@ -132,7 +132,8 @@ Use the config derive that matches the clap derive:
 
 ## Configuration shape
 
-Configuration keys mirror clap's structure.
+Configuration keys mirror clap's structure. Multi-word keys and subcommand sections may be written
+in snake_case or kebab-case (`max_connections` or `max-connections`), but not both at once.
 
 ### Flattened args
 
@@ -185,7 +186,8 @@ port = 8080
 logging = true
 ```
 
-Section names are the kebab-case command names used on the CLI (`DryRun` is `[command.dry-run]`).
+Section names are the command names used on the CLI (`DryRun` is `[command.dry-run]`, or
+`[command.dry_run]`).
 Running `app build server` uses the `build` and `server` sections, `app run` uses the `run` section,
 and `app` alone fails with clap's usual missing-subcommand error. Unit variants have no parameters
 and need no section.
@@ -199,8 +201,7 @@ Config no longer selects the subcommand:
 
 - Remove `command = "serve"` and `command = { debug = { ... } }`; pass the command on the CLI.
 - Remove `#[config(tag = "...")]` and move parameters from `[command]` into `[command.<variant>]`.
-- `[command.<variant>]` sections keep working, and several of them may now coexist. Multi-word
-  names are now kebab-case like on the CLI: rename `[command.dry_run]` to `[command.dry-run]`.
+- `[command.<variant>]` sections keep working, and several of them may now coexist.
 
 ## Attribute reference
 

@@ -1,7 +1,7 @@
-use heck::ToSnakeCase;
+use heck::{ToKebabCase, ToSnakeCase};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{Ident, ext::IdentExt};
 
 use crate::{
     ClapArg, TypeExt,
@@ -255,22 +255,36 @@ pub(crate) fn generate_deserialize_with_attr(
 }
 
 pub(crate) fn generate_serde_alias_attrs(field: &NamedField) -> TokenStream {
-    if !field.commands().is_empty() {
+    let mut aliases: Vec<String> = if !field.commands().is_empty() {
         // `clap` does not support aliases for command-like, so we forward any
         // `#[config(alias, aliases)]` directly
         field
             .aliases()
             .into_iter()
-            .map(|alias| quote! { #[serde(alias = #alias)] })
-            .into_token_stream()
+            .map(|alias| alias.value())
+            .collect()
     } else {
         field
             .args()
             .iter()
             .flat_map(ClapArg::aliases)
-            .map(|alias| quote! { #[serde(alias = #alias)] })
-            .into_token_stream()
+            .map(|alias| alias.value())
+            .collect()
+    };
+
+    // Config files may spell multi-word keys in kebab-case; the canonical key stays the field name
+    // so the config merges with the generated `Opts`.
+    let field_name = field.ident().unraw().to_string();
+    let kebab_name = field_name.to_kebab_case();
+
+    if !field.flatten() && kebab_name != field_name && !aliases.contains(&kebab_name) {
+        aliases.push(kebab_name);
     }
+
+    aliases
+        .iter()
+        .map(|alias| quote! { #[serde(alias = #alias)] })
+        .into_token_stream()
 }
 
 pub(crate) fn generate_sanitized_clap_attrs(field: &NamedField) -> TokenStream {

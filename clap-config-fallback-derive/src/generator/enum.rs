@@ -1,4 +1,4 @@
-use heck::ToKebabCase;
+use heck::{ToKebabCase, ToSnakeCase};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
@@ -125,6 +125,10 @@ impl<T: EnumLike> EnumGenerator<T> {
                 let variant_ident = variant.ident();
                 let section_ident = format_ident!("{}{}", ident, variant_ident);
                 let section_name = variant_ident.to_string().to_kebab_case();
+                let section_alias = variant_ident.to_string().to_snake_case();
+                // config files may spell multi-word sections either way
+                let section_alias_attr = (section_alias != section_name)
+                    .then(|| quote! { #[serde(alias = #section_alias)] });
                 let section_struct = |fields: TokenStream| {
                     quote! {
                         #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
@@ -167,6 +171,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                     section_struct,
                     quote! {
                         #[serde(rename = #section_name)]
+                        #section_alias_attr
                         #[serde(default)]
                         #[serde(skip_serializing_if = "::std::option::Option::is_none")]
                         #variant_ident: ::std::option::Option<#section_ty>

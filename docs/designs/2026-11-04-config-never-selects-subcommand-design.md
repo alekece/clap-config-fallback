@@ -61,7 +61,7 @@ Running `xxx build server` uses the `build` and `server` values; `xxx run` uses 
 - Optional and required subcommands behave the same: config never promotes a command, and with no CLI command all command sections are dropped. No existing test or example uses an optional subcommand.
 - Unit, newtype and struct variants are all covered by the existing tests and must stay covered.
 - Both crates move to 0.2.0 together, including the derive crate's version pin in the root `Cargo.toml` and `Cargo.lock`. There is no changelog; the README migration section is the release note.
-- Section names are kebab-case, matching the CLI command names (maintainer's choice in PR review). This supersedes the initial snake_case choice: multi-word sections such as `[command.dry_run]` become `[command.dry-run]`, documented in the README migration notes.
+- Section names are kebab-case, matching the CLI command names, and snake_case is accepted as an alias (maintainer's choice in PR review). Every multi-word config key likewise accepts both spellings; a file that uses both for the same key is an error. Canonical serialized names are unchanged (field idents, kebab-case sections), so the typed config still merges with `Opts`. Existing 0.1 files keep working.
 - The pruning mechanism (above) is proposed, not required; any approach meeting the goals is acceptable.
 
 ## Left to the builder

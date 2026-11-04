@@ -207,8 +207,24 @@ fn multi_word_command_section_is_kebab_case() -> Result<()> {
 }
 
 #[test]
-fn snake_case_command_section_returns_error() -> Result<()> {
+fn snake_case_command_section_is_accepted() -> Result<()> {
     let file = write_config(&["[command.dry_run]", "limit = 3"])?;
+
+    let cli = parse(&file, &["dry-run"])?;
+
+    assert_matches!(cli.command, Command::DryRun { limit: Some(3) });
+
+    Ok(())
+}
+
+#[test]
+fn both_command_section_spellings_returns_error() -> Result<()> {
+    let file = write_config(&[
+        "[command.dry_run]",
+        "limit = 3",
+        "[command.dry-run]",
+        "limit = 4",
+    ])?;
 
     let error = parse(&file, &["dry-run"]).unwrap_err();
 
