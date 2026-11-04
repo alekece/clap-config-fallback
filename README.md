@@ -130,8 +130,8 @@ Use the config derive that matches the clap derive:
 - Nested flattened structs must derive `ConfigArgs`.
 - `#[command(flatten)]` is flattened in config too, unless you add `#[config(no_flatten)]`.
 - Subcommands are selected on the CLI only; config holds one optional section per subcommand.
-- Type- and variant-level `#[command(...)]` attributes such as `rename_all` and `name` are honored,
-  and config keys follow the renamed CLI names.
+- Type- and variant-level `#[command(...)]` attributes such as `rename_all` and `name` are honored.
+  Subcommand sections follow the renamed CLI names; field keys keep the field name.
 - Config types must be `'static` (the derives always produce `'static` types).
 
 ## Configuration shape

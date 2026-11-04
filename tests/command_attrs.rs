@@ -1,6 +1,6 @@
 use std::{fs, io::Write, path::PathBuf};
 
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use clap_config_fallback::{ConfigParser, ConfigSubcommand};
 use eyre::Result;
 use tempfile::NamedTempFile;
@@ -127,6 +127,121 @@ fn enum_rename_all_applies_to_variant_fields() -> Result<()> {
     ])?;
 
     assert_eq!(cli.cmd, SnakeCommand::DryRun { max_conn: 5 });
+
+    Ok(())
+}
+
+#[derive(Debug, Parser, ConfigParser)]
+struct VariantRenameCli {
+    #[arg(long)]
+    #[config(path, format = "toml")]
+    config_path: Option<PathBuf>,
+    #[command(subcommand)]
+    cmd: VariantRenameCommand,
+}
+
+#[derive(Debug, PartialEq, Eq, Subcommand, ConfigSubcommand)]
+enum VariantRenameCommand {
+    #[command(rename_all = "snake_case")]
+    DryRun {
+        #[arg(long)]
+        max_conn: u8,
+    },
+}
+
+#[test]
+fn variant_rename_all_renames_the_subcommand() -> Result<()> {
+    let cli = VariantRenameCli::try_parse_with_config_from(["app", "dry_run", "--max_conn", "1"])?;
+
+    assert_eq!(cli.cmd, VariantRenameCommand::DryRun { max_conn: 1 });
+
+    let file = write_config("[cmd.dry_run]\nmax_conn = 2\n")?;
+    let cli = VariantRenameCli::try_parse_with_config_from([
+        "app",
+        "--config-path",
+        &path_of(&file),
+        "dry_run",
+    ])?;
+
+    assert_eq!(cli.cmd, VariantRenameCommand::DryRun { max_conn: 2 });
+
+    Ok(())
+}
+
+// clap accepts loose spellings such as "lowercase", and `lower` drops underscores from flags.
+// Config keys still use the field name.
+#[derive(Debug, Parser, ConfigParser)]
+#[command(rename_all = "lowercase")]
+struct LowerCli {
+    #[arg(long)]
+    #[config(path, format = "toml")]
+    config_path: Option<PathBuf>,
+    #[arg(long)]
+    max_conn: u8,
+}
+
+#[test]
+fn lower_rename_all_matches_clap() -> Result<()> {
+    let cli = LowerCli::try_parse_with_config_from(["app", "--maxconn", "3"])?;
+
+    assert_eq!(cli.max_conn, 3);
+
+    let file = write_config("max_conn = 4\n")?;
+    let cli = LowerCli::try_parse_with_config_from(["app", "--configpath", &path_of(&file)])?;
+
+    assert_eq!(cli.max_conn, 4);
+
+    Ok(())
+}
+
+#[derive(Debug, Parser, ConfigParser)]
+#[command(group(ArgGroup::new("target").required(true).args(["host", "socket"])))]
+struct GroupCli {
+    #[arg(long)]
+    #[config(path, format = "toml")]
+    config_path: Option<PathBuf>,
+    #[arg(long)]
+    host: Option<String>,
+    #[arg(long)]
+    socket: Option<String>,
+}
+
+#[test]
+fn required_group_can_be_satisfied_by_config() -> Result<()> {
+    let file = write_config("host = \"h\"\n")?;
+    let cli = GroupCli::try_parse_with_config_from(["app", "--config-path", &path_of(&file)])?;
+
+    assert_eq!(cli.host.as_deref(), Some("h"));
+
+    let err = GroupCli::try_parse_with_config_from(["app"]).unwrap_err();
+
+    assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+
+    Ok(())
+}
+
+#[derive(Debug, Parser, ConfigParser)]
+#[command(groups([ArgGroup::new("target").required(true).args(["host", "socket"])]))]
+struct GroupsCli {
+    #[arg(long)]
+    #[config(path, format = "toml")]
+    config_path: Option<PathBuf>,
+    #[arg(long)]
+    host: Option<String>,
+    #[arg(long)]
+    socket: Option<String>,
+}
+
+#[test]
+fn required_groups_can_be_satisfied_by_config() -> Result<()> {
+    let file = write_config("socket = \"s\"\n")?;
+    let cli = GroupsCli::try_parse_with_config_from(["app", "--config-path", &path_of(&file)])?;
+
+    assert_eq!(cli.socket.as_deref(), Some("s"));
+
+    let err = GroupsCli::try_parse_with_config_from(["app"]).unwrap_err();
+
+    assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
 
     Ok(())
 }

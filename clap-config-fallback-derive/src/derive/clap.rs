@@ -41,33 +41,37 @@ impl ClapCommand {
 }
 
 impl RenameRule {
-    /// Parses clap's spelling of a casing, e.g. `"kebab-case"`.
+    /// Parses a casing with clap's normalization, so `"kebab-case"`, `"kebab"` and `"KebabCase"`
+    /// are all accepted.
     fn parse(value: &str) -> Option<Self> {
-        let rule = match value {
-            "camelCase" => Self::Camel,
-            "kebab-case" => Self::Kebab,
-            "PascalCase" => Self::Pascal,
-            "SCREAMING_SNAKE_CASE" => Self::ScreamingSnake,
-            "snake_case" => Self::Snake,
-            "lower" => Self::Lower,
-            "UPPER" => Self::Upper,
-            "verbatim" => Self::Verbatim,
+        let rule = match value.to_upper_camel_case().to_lowercase().as_str() {
+            "camel" | "camelcase" => Self::Camel,
+            "kebab" | "kebabcase" => Self::Kebab,
+            "pascal" | "pascalcase" => Self::Pascal,
+            "screamingsnake" | "screamingsnakecase" => Self::ScreamingSnake,
+            "snake" | "snakecase" => Self::Snake,
+            "lower" | "lowercase" => Self::Lower,
+            "upper" | "uppercase" => Self::Upper,
+            "verbatim" | "verbatimcase" => Self::Verbatim,
             _ => return None,
         };
 
         Some(rule)
     }
 
-    /// Converts a Rust identifier to the name clap derives from it.
+    /// Converts a Rust identifier to the name clap derives from it, mirroring clap's
+    /// `Name::translate`.
     pub fn apply(self, name: &str) -> String {
+        let name = name.strip_prefix("r#").unwrap_or(name);
+
         match self {
             Self::Camel => name.to_lower_camel_case(),
             Self::Kebab => name.to_kebab_case(),
             Self::Pascal => name.to_upper_camel_case(),
             Self::ScreamingSnake => name.to_shouty_snake_case(),
             Self::Snake => name.to_snake_case(),
-            Self::Lower => name.to_lowercase(),
-            Self::Upper => name.to_uppercase(),
+            Self::Lower => name.to_snake_case().replace('_', ""),
+            Self::Upper => name.to_shouty_snake_case().replace('_', ""),
             Self::Verbatim => name.to_owned(),
         }
     }
@@ -137,8 +141,9 @@ impl ClapCommandAttr {
         self.rename_all
     }
 
-    /// Removes items that must not apply to the first, all-optional parse: a run that relies on
-    /// config values would otherwise stop at the help screen.
+    /// Relaxes items that must not apply to the first, all-optional parse, where config values are
+    /// not merged yet: `arg_required_else_help` is dropped and argument groups become optional.
+    /// The final parse still enforces them.
     pub fn sanitize(attr: &Attribute) -> Attribute {
         let Some(items) = ClapArg::parse_items(attr).filter(|_| attr.path().is_ident("command"))
         else {
@@ -147,9 +152,27 @@ impl ClapCommandAttr {
 
         let items: Punctuated<Expr, Token![,]> = items
             .into_iter()
-            .filter(|expr| {
-                expr.ident()
-                    .is_none_or(|ident| ident != "arg_required_else_help")
+            .filter_map(|expr| {
+                let Some(ident) = expr.ident().map(Ident::to_string) else {
+                    return Some(expr);
+                };
+
+                match (ident.as_str(), &expr) {
+                    ("arg_required_else_help", _) => None,
+                    ("group", Expr::Call(call)) if call.args.len() == 1 => {
+                        let group = &call.args[0];
+
+                        Some(parse_quote!(group((#group).required(false))))
+                    }
+                    ("groups", Expr::Call(call)) if call.args.len() == 1 => {
+                        let groups = &call.args[0];
+
+                        Some(parse_quote!(groups((#groups).into_iter().map(|group| {
+                            ::clap::ArgGroup::from(group).required(false)
+                        }))))
+                    }
+                    _ => Some(expr),
+                }
             })
             .collect();
 

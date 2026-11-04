@@ -51,11 +51,12 @@ impl Variant {
     }
 
     /// Returns the subcommand name clap uses: the explicit `name`, otherwise the identifier cased
-    /// by the enum's `rename_all`.
+    /// by the variant's own `rename_all`, falling back to the enum's.
     pub fn command_name(&self, enum_rule: RenameRule) -> String {
-        self.command
-            .name()
-            .map_or_else(|| enum_rule.apply(&self.ident.to_string()), str::to_owned)
+        self.command.name().map_or_else(
+            || self.rename_rule(enum_rule).apply(&self.ident.to_string()),
+            str::to_owned,
+        )
     }
 
     /// Returns the casing of the variant's fields: its own `rename_all`, otherwise the enum's.
