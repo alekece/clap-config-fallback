@@ -39,10 +39,13 @@ pub struct ClapArg {
     #[allow(dead_code)]
     #[darling(flatten)]
     ignored_args: Result<(), Error>,
-    /// Whether `id` comes before `short`/`long` in the attribute, in which case clap derives the
-    /// inherited flag names from the id rather than the field name.
+    /// Whether `id` comes before `short` in the attribute, in which case clap derives the
+    /// inherited short from the id rather than the field name.
     #[darling(skip)]
-    id_before_flags: bool,
+    id_before_short: bool,
+    /// Same as `id_before_short`, for `long`.
+    #[darling(skip)]
+    id_before_long: bool,
 }
 
 impl Default for ClapArg {
@@ -55,7 +58,8 @@ impl Default for ClapArg {
             aliases: None,
             value_parser: None,
             ignored_args: Ok(()),
-            id_before_flags: false,
+            id_before_short: false,
+            id_before_long: false,
         }
     }
 }
@@ -66,16 +70,16 @@ impl ClapArg {
     pub fn from_attr(attr: &Attribute) -> Option<Self> {
         let mut arg = Self::from_meta(&attr.meta).ok()?;
         let names = parse_arg_names(attr);
-        let position = |wanted: &[&str]| {
-            names
-                .iter()
-                .position(|name| wanted.contains(&name.as_str()))
+        let position = |wanted: &str| names.iter().position(|name| name == wanted);
+        let id_before = |flag: &str| {
+            matches!(
+                (position("id"), position(flag)),
+                (Some(id), Some(flag)) if id < flag
+            )
         };
 
-        arg.id_before_flags = matches!(
-            (position(&["id"]), position(&["short", "long"])),
-            (Some(id), Some(flag)) if id < flag
-        );
+        arg.id_before_short = id_before("short");
+        arg.id_before_long = id_before("long");
 
         Some(arg)
     }
@@ -107,20 +111,28 @@ impl ClapArg {
     /// Note that if both `short` and `long` are specified, `short` will take precedence for
     /// generating the flag
     pub fn flag_name(&self, name: &str) -> Option<String> {
-        let id = self.id_before_flags.then(|| self.id()).flatten();
-        let name = id.as_deref().unwrap_or(name);
+        let id = self.id();
+        let inherited_name = |id_before_flag: bool| {
+            id.as_deref()
+                .filter(|_| id_before_flag)
+                .unwrap_or(name)
+                .to_owned()
+        };
 
         if let Some(short) = &self.short {
             return match short {
                 Override::Explicit(c) => Some(format!("-{c}")),
-                Override::Inherit => name.chars().next().map(|c| format!("-{c}")),
+                Override::Inherit => inherited_name(self.id_before_short)
+                    .chars()
+                    .next()
+                    .map(|c| format!("-{c}")),
             };
         }
 
         if let Some(long) = &self.long {
             return match long {
                 Override::Explicit(s) => Some(format!("--{s}")),
-                Override::Inherit => Some(format!("--{name}")),
+                Override::Inherit => Some(format!("--{}", inherited_name(self.id_before_long))),
             };
         }
 

@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use assert_matches::assert_matches;
 use clap::{Args, Parser, Subcommand};
 use clap_config_fallback::{ConfigArgs, ConfigParser, ConfigSubcommand};
 use eyre::Result;
@@ -30,6 +31,8 @@ struct IdCli {
     long_from_id: Option<String>,
     #[arg(id = "zed", short)]
     short_from_id: Option<String>,
+    #[arg(long, id = "between", short)]
+    mixed: Option<String>,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
@@ -73,6 +76,28 @@ enum Command {
         #[arg(long)]
         target: Option<String>,
     },
+    Nested {
+        #[command(subcommand)]
+        leaf: Leaf,
+        #[arg(long)]
+        after: Option<i32>,
+        #[command(flatten)]
+        extra: ExtraArgs,
+    },
+}
+
+#[derive(Debug, Args, ConfigArgs)]
+struct ExtraArgs {
+    #[arg(long)]
+    level: Option<u8>,
+}
+
+#[derive(Debug, Subcommand, ConfigSubcommand)]
+enum Leaf {
+    Go {
+        #[arg(long)]
+        speed: Option<i32>,
+    },
 }
 
 fn write_config(lines: &[&str]) -> Result<NamedTempFile> {
@@ -113,6 +138,8 @@ fn reads_raw_and_custom_ids_from_cli() -> Result<()> {
         "d",
         "-z",
         "e",
+        "--mixed",
+        "f",
     ])?;
 
     assert_eq!(cli.r#type.as_deref(), Some("a"));
@@ -120,6 +147,7 @@ fn reads_raw_and_custom_ids_from_cli() -> Result<()> {
     assert_eq!(cli.renamed.as_deref(), Some("c"));
     assert_eq!(cli.long_from_id.as_deref(), Some("d"));
     assert_eq!(cli.short_from_id.as_deref(), Some("e"));
+    assert_eq!(cli.mixed.as_deref(), Some("f"));
 
     Ok(())
 }
@@ -132,6 +160,7 @@ fn reads_raw_and_custom_ids_from_config() -> Result<()> {
         r#"renamed = "c""#,
         r#"long_from_id = "d""#,
         r#"short_from_id = "e""#,
+        r#"mixed = "f""#,
     ])?;
     let path = file.path().display().to_string();
 
@@ -142,6 +171,7 @@ fn reads_raw_and_custom_ids_from_config() -> Result<()> {
     assert_eq!(cli.renamed.as_deref(), Some("c"));
     assert_eq!(cli.long_from_id.as_deref(), Some("d"));
     assert_eq!(cli.short_from_id.as_deref(), Some("e"));
+    assert_eq!(cli.mixed.as_deref(), Some("f"));
 
     Ok(())
 }
@@ -173,6 +203,33 @@ fn keeps_positional_order_across_flatten() -> Result<()> {
 
     assert_eq!(cli.inner.first.as_deref(), Some("a"));
     assert_eq!(cli.second.as_deref(), Some("b"));
+
+    Ok(())
+}
+
+#[test]
+fn emits_variant_subcommand_after_variant_fields() -> Result<()> {
+    let file = write_config(&[
+        "threads = 4",
+        "[command.nested]",
+        "after = -1",
+        "level = 3",
+        "[command.nested.leaf.go]",
+        "speed = 2",
+    ])?;
+    let path = file.path().display().to_string();
+
+    let cli =
+        OrderCli::try_parse_with_config_from(["bin", "--config-path", &path, "nested", "go"])?;
+
+    assert_matches!(
+        cli.app.command,
+        Command::Nested {
+            leaf: Leaf::Go { speed: Some(2) },
+            after: Some(-1),
+            extra: ExtraArgs { level: Some(3) },
+        }
+    );
 
     Ok(())
 }

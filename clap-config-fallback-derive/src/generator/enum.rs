@@ -313,13 +313,13 @@ impl<T: EnumLike> EnumGenerator<T> {
 
                     quote! {
                         Self::#variant_ident { #(#field_idents,)* } => {
-                            let mut #commands_ident = ::std::vec::Vec::new();
+                            let #commands_ident = &mut ::std::vec::Vec::new();
 
                             #variant_arg;
 
                             #(#field_statements)*
 
-                            #ident.append(&mut #commands_ident);
+                            #ident.append(#commands_ident);
                         }
                     }
                 }
