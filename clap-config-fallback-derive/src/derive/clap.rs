@@ -157,16 +157,19 @@ impl ClapCommandAttr {
                     return Some(expr);
                 };
 
-                match (ident.as_str(), &expr) {
+                // clap accepts both `group(value)` and `group = value`.
+                let value = match &expr {
+                    Expr::Call(call) if call.args.len() == 1 => Some(&call.args[0]),
+                    Expr::Assign(assign) => Some(&*assign.right),
+                    _ => None,
+                };
+
+                match (ident.as_str(), value) {
                     ("arg_required_else_help", _) => None,
-                    ("group", Expr::Call(call)) if call.args.len() == 1 => {
-                        let group = &call.args[0];
-
-                        Some(parse_quote!(group((#group).required(false))))
-                    }
-                    ("groups", Expr::Call(call)) if call.args.len() == 1 => {
-                        let groups = &call.args[0];
-
+                    ("group", Some(group)) => Some(parse_quote!(group(
+                        ::clap::ArgGroup::from(#group).required(false)
+                    ))),
+                    ("groups", Some(groups)) => {
                         Some(parse_quote!(groups((#groups).into_iter().map(|group| {
                             ::clap::ArgGroup::from(group).required(false)
                         }))))

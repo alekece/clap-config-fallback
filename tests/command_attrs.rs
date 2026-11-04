@@ -195,7 +195,7 @@ fn lower_rename_all_matches_clap() -> Result<()> {
 }
 
 #[derive(Debug, Parser, ConfigParser)]
-#[command(group(ArgGroup::new("target").required(true).args(["host", "socket"])))]
+#[command(group = ArgGroup::new("target").required(true).args(["host", "socket"]))]
 struct GroupCli {
     #[arg(long)]
     #[config(path, format = "toml")]
@@ -240,6 +240,38 @@ fn required_groups_can_be_satisfied_by_config() -> Result<()> {
     assert_eq!(cli.socket.as_deref(), Some("s"));
 
     let err = GroupsCli::try_parse_with_config_from(["app"]).unwrap_err();
+
+    assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+
+    Ok(())
+}
+
+fn target_group() -> ArgGroup {
+    ArgGroup::new("target")
+        .required(true)
+        .args(["host", "socket"])
+}
+
+#[derive(Debug, Parser, ConfigParser)]
+#[command(group(&target_group()))]
+struct GroupRefCli {
+    #[arg(long)]
+    #[config(path, format = "toml")]
+    config_path: Option<PathBuf>,
+    #[arg(long)]
+    host: Option<String>,
+    #[arg(long)]
+    socket: Option<String>,
+}
+
+#[test]
+fn borrowed_required_group_can_be_satisfied_by_config() -> Result<()> {
+    let file = write_config("host = \"h\"\n")?;
+    let cli = GroupRefCli::try_parse_with_config_from(["app", "--config-path", &path_of(&file)])?;
+
+    assert_eq!(cli.host.as_deref(), Some("h"));
+
+    let err = GroupRefCli::try_parse_with_config_from(["app"]).unwrap_err();
 
     assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
 
