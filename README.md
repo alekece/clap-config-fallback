@@ -27,7 +27,7 @@ This crate keeps **clap as the single source of truth**:
 ```toml
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-clap-config-fallback = { version = "0.1", features = ["derive"] }
+clap-config-fallback = { version = "0.2", features = ["derive"] }
 ```
 
 Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled by default.
@@ -39,7 +39,8 @@ Configuration formats are feature-gated. `toml`, `yaml`, and `json` are enabled 
 3. Call `parse_with_config()` instead of `parse()`.
 
 The root must be a struct because the config path has to be discovered before any subcommand is
-selected. Subcommands still work normally; put them behind a `#[command(subcommand)]` field.
+selected. Subcommands still work normally; put them behind a `#[command(subcommand)]` field. The
+subcommand is always selected on the CLI; config only supplies its parameters.
 
 ```rust
 use std::path::PathBuf;
@@ -65,7 +66,10 @@ struct Cli {
 
 #[derive(Subcommand, ConfigSubcommand)]
 enum Command {
-    Serve,
+    Serve {
+        #[arg(long)]
+        workers: u16,
+    },
 }
 
 fn main() {
@@ -79,8 +83,12 @@ Example `config.toml`:
 ```toml
 host = "127.0.0.1"
 port = 8080
-command = "serve"
+
+[command.serve]
+workers = 4
 ```
+
+Running `app serve` then uses `workers = 4` unless `--workers` is given.
 
 ## How fallback works
 
@@ -120,7 +128,7 @@ Use the config derive that matches the clap derive:
   argument values.
 - Nested flattened structs must derive `ConfigArgs`.
 - `#[command(flatten)]` is flattened in config too, unless you add `#[config(no_flatten)]`.
-- Subcommands use an externally tagged config representation by default.
+- Subcommands are selected on the CLI only; config holds one optional section per subcommand.
 
 ## Configuration shape
 
@@ -162,35 +170,35 @@ port = 5432
 
 ### Subcommands
 
-Subcommands are externally tagged by default:
+The CLI alone selects the subcommand. Config holds one optional section per subcommand, so it can
+define parameters for every command at once; only the section of the command given on the CLI is
+used. Nested subcommands use a nested `command` section:
 
 ```toml
-command = "serve"
-
-command = { debug = { verbose = true } }
-
 [command.build]
 target = "x86_64-unknown-linux-gnu"
+
+[command.build.command.server]  # `app build server`
+port = 8080
+
+[command.run]
+logging = true
 ```
 
-To use an internally tagged representation, add `#[config(tag = "...")]` to the subcommand enum:
+Section names are the snake_case variant names. Running `app build server` uses the `build` and
+`server` sections, `app run` uses the `run` section, and `app` alone fails with clap's usual
+missing-subcommand error. Unit variants have no parameters and need no section.
 
-```rust
-#[derive(Subcommand, ConfigSubcommand)]
-#[config(tag = "name")]
-enum Command {
-    Build(BuildCommand),
-}
-```
+The whole file is still validated: a section for an unknown or `#[config(skip)]` subcommand, or with
+invalid values, is a configuration error even when another command is selected.
 
-```toml
-[command]
-name = "build"
-target = "x86_64-unknown-linux-gnu"
-```
+### Migrating from 0.1
 
-> **Note:** the tag key shares a namespace with variant fields, so choose a tag name that cannot
-> conflict.
+Config no longer selects the subcommand:
+
+- Remove `command = "serve"` and `command = { debug = { ... } }`; pass the command on the CLI.
+- Remove `#[config(tag = "...")]` and move parameters from `[command]` into `[command.<variant>]`.
+- `[command.<variant>]` sections keep working as before, and several of them may now coexist.
 
 ## Attribute reference
 
@@ -216,7 +224,6 @@ those appear in both tables.
 | ------------------------------- | -------------------------------- | ------------------------------------------------ |
 | `#[config(precedence = "...")]` | `ConfigParser`/`ConfigArgs` type | Sets fallback precedence for fields in that type |
 | `#[config(skip_all)]`           | struct or subcommand enum        | Excludes all contained fields or variants        |
-| `#[config(tag = "...")]`        | `ConfigSubcommand` enum          | Enables internally tagged subcommand config      |
 
 ### `#[config(path)]`
 
