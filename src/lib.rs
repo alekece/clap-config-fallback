@@ -8,6 +8,7 @@
 //! 4. Re-run clap on reconstructed arguments for final validation.
 
 mod arg;
+#[doc(hidden)]
 pub mod format;
 
 use std::{
@@ -23,6 +24,7 @@ use serde::{Serialize, de::DeserializeOwned};
 #[cfg(feature = "derive")]
 pub use clap_config_fallback_derive::{ConfigArgs, ConfigParser, ConfigSubcommand};
 
+#[doc(hidden)]
 pub use arg::{Arg, FromArgs, IntoArgs};
 
 /// Dependencies used by derive-generated code, so users do not have to depend on them directly.
@@ -35,6 +37,7 @@ pub mod reexports {
 
 /// Supported configuration file formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ConfigFormat {
     Toml,
     Yaml,
@@ -67,6 +70,9 @@ pub trait ConfigSource {
 }
 
 /// Defines the associated types for config fallback parsing.
+///
+/// Implemented by the derives; not part of the public API.
+#[doc(hidden)]
 pub trait ConfigFallback {
     /// Intermediate optional representation used during merge.
     type Opts: Serialize + DeserializeOwned + IntoArgs + FromArgs;
