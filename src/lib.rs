@@ -1,11 +1,9 @@
-//! `clap-config-fallback` extends clap with configuration-file fallback while preserving clap as
-//! the final parser/validator.
-//!
-//! Typical flow:
-//! 1. Parse CLI args into an optional intermediate struct.
-//! 2. Load config values from `#[config(path)]` (if provided).
-//! 3. Merge with precedence `CLI > config`.
-//! 4. Re-run clap on reconstructed arguments for final validation.
+// README examples use the derives, so the README is the crate docs only when they are available.
+#![cfg_attr(feature = "derive", doc = include_str!("../README.md"))]
+#![cfg_attr(
+    not(feature = "derive"),
+    doc = "Configuration-file fallback for clap. See the README for usage."
+)]
 
 mod arg;
 #[doc(hidden)]

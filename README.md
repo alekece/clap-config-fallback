@@ -43,7 +43,7 @@ The root must be a struct because the config path has to be discovered before an
 selected. Subcommands still work normally; put them behind a `#[command(subcommand)]` field. The
 subcommand is always selected on the CLI; config only supplies its parameters.
 
-```rust
+```rust,no_run
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -147,7 +147,7 @@ in snake_case or kebab-case (`max_connections` or `max-connections`), but not bo
 
 A `#[command(flatten)]` field is flattened in config:
 
-```rust
+```rust,ignore
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(flatten)]
@@ -162,7 +162,7 @@ port = 5432
 
 Add `#[config(no_flatten)]` to keep a nested section instead:
 
-```rust
+```rust,ignore
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(flatten)]
@@ -247,6 +247,9 @@ and `Option<PathBuf>`.
 If no path field exists, fallback is disabled. If the path field has a clap `default_value`, that
 default path enables fallback automatically.
 
+A path that points to a missing file is an error, including a `default_value` path. To make the
+config file optional, leave the path field without a default.
+
 ### `#[config(format = "...")]`
 
 Forces parsing for the config path field:
@@ -270,6 +273,9 @@ Controls where config values are inserted into clap's fallback chain:
 propagated automatically into nested types.
 
 ```rust
+use clap::{Args, Parser};
+use clap_config_fallback::{ConfigArgs, ConfigParser};
+
 #[derive(Parser, ConfigParser)]
 #[config(precedence = "before_env")]
 struct Cli {
@@ -294,7 +300,7 @@ struct CliArgs {
 Use `skip` to exclude one field or subcommand variant from config fallback while preserving normal
 clap behavior:
 
-```rust
+```rust,ignore
 #[arg(long)]
 #[config(skip)]
 port: u16,
@@ -302,7 +308,7 @@ port: u16,
 
 Use `skip_all` to exclude all fields or variants in the current type:
 
-```rust
+```rust,ignore
 #[derive(Parser, ConfigParser)]
 #[config(skip_all)]
 struct Cli {
@@ -315,7 +321,7 @@ struct Cli {
 Customizes how a merged value is converted back into a CLI argument value before the final clap
 parse. This is useful for types whose config representation differs from their CLI representation.
 
-```rust
+```rust,ignore
 #[arg(long)]
 #[config(value_format = |value: Duration| format!("{}s", value.as_secs()))]
 duration: Duration,
@@ -329,7 +335,7 @@ deserialization only; they do not change CLI flags or subcommand names.
 Aliases are meaningful for subcommand fields and for flattened fields marked with
 `#[config(no_flatten)]`. They are not allowed on fields that are flattened in config.
 
-```rust
+```rust,ignore
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(subcommand)]
@@ -342,7 +348,7 @@ struct Cli {
 
 Prevents a `#[command(flatten)]` field from being flattened in configuration.
 
-```rust
+```rust,ignore
 #[derive(Parser, ConfigParser)]
 struct Cli {
     #[command(flatten)]
@@ -365,6 +371,9 @@ Rename the generated types, for example when you already have a type called `Cli
 may be used alone; the other type keeps its default name.
 
 ```rust
+use clap::Parser;
+use clap_config_fallback::ConfigParser;
+
 #[derive(Parser, ConfigParser)]
 #[config(opts = "CliOptions", config = "CliFile")]
 struct Cli {
