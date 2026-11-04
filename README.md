@@ -123,7 +123,7 @@ Use the config derive that matches the clap derive:
 
 Each derive also generates two public types next to yours, `<Name>Opts` and `<Name>Config`. If one
 of these names is already taken, rename them with
-[`#[config(opts = "...", config = "...")]`](#configopts--and-config--).
+`#[config(opts = "...", config = "...")]` (see below).
 
 ## Requirements
 
