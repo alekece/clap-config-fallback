@@ -245,7 +245,7 @@ impl<T: StructLike> StructGenerator<T> {
 
         quote! {
             #[allow(unused_variables)]
-            fn retain_selected_commands(#config: &mut Self::Config, #opts: &Self::Opts) {
+            fn retain_commands(#config: &mut Self::Config, #opts: &Self::Opts) {
                 #(#statements)*
             }
         }

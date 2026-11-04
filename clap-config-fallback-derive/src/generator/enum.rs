@@ -71,8 +71,9 @@ impl<T: EnumLike> EnumGenerator<T> {
         let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
         let variants = self.input.variants().iter().map(|variant| {
             let variant_ident = variant.ident();
-
-            match variant.shape() {
+            // must match the config section name so both sides merge
+            let variant_name = variant_ident.to_string().to_kebab_case();
+            let variant = match variant.shape() {
                 VariantShape::Unit => quote! { #variant_ident },
                 VariantShape::Newtype(ty) => {
                     let target_ident = target.suffix_ident();
@@ -91,6 +92,11 @@ impl<T: EnumLike> EnumGenerator<T> {
 
                     quote! { #variant_ident { #(#fields),* } }
                 }
+            };
+
+            quote! {
+                #[serde(rename = #variant_name)]
+                #variant
             }
         });
 
@@ -98,7 +104,6 @@ impl<T: EnumLike> EnumGenerator<T> {
             ident.clone(),
             quote! {
                 #[derive(Debug, ::serde::Serialize, ::serde::Deserialize)]
-                #[serde(rename_all = "snake_case")]
                 pub enum #ident {
                     #(#variants,)*
                 }
@@ -119,7 +124,7 @@ impl<T: EnumLike> EnumGenerator<T> {
             .map(|variant| {
                 let variant_ident = variant.ident();
                 let section_ident = format_ident!("{}{}", ident, variant_ident);
-                let section_name = to_serde_snake_case(&variant_ident.to_string());
+                let section_name = variant_ident.to_string().to_kebab_case();
                 let section_struct = |fields: TokenStream| {
                     quote! {
                         #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
@@ -185,7 +190,7 @@ impl<T: EnumLike> EnumGenerator<T> {
         )
     }
 
-    /// Generates `ConfigFallback::retain_selected_commands`, keeping only the section of the
+    /// Generates `ConfigFallback::retain_commands`, keeping only the section of the
     /// variant selected on the CLI and recursing into its nested subcommands.
     fn generate_retain_commands_fn(&self, opts_ident: &Ident) -> TokenStream {
         let config = format_ident!("__clap_config");
@@ -210,7 +215,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                 VariantShape::Newtype(ty) => quote! {
                     #opts_ident::#variant_ident(__clap_opts) => {
                         if let ::std::option::Option::Some(mut #section) = #sections.#variant_ident {
-                            <#ty as ::clap_config_fallback::ConfigFallback>::retain_selected_commands(
+                            <#ty as ::clap_config_fallback::ConfigFallback>::retain_commands(
                                 &mut #section,
                                 __clap_opts,
                             );
@@ -256,7 +261,7 @@ impl<T: EnumLike> EnumGenerator<T> {
 
         quote! {
             #[allow(unused_mut, unused_variables)]
-            fn retain_selected_commands(#config: &mut Self::Config, __clap_opts: &Self::Opts) {
+            fn retain_commands(#config: &mut Self::Config, __clap_opts: &Self::Opts) {
                 let #sections = ::std::mem::take(#config);
 
                 match __clap_opts {
@@ -375,20 +380,4 @@ impl<T: EnumLike> EnumGenerator<T> {
             .map(|(ident, field)| helpers::generate_deserialize_fn(&field, Some(ident)))
             .into_token_stream()
     }
-}
-
-/// Converts a variant name to snake case the way serde's `rename_all = "snake_case"` does, so
-/// section names stay those of earlier releases.
-fn to_serde_snake_case(variant: &str) -> String {
-    let mut snake = String::new();
-
-    for (i, ch) in variant.char_indices() {
-        if i > 0 && ch.is_uppercase() {
-            snake.push('_');
-        }
-
-        snake.push(ch.to_ascii_lowercase());
-    }
-
-    snake
 }

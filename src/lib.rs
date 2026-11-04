@@ -69,7 +69,7 @@ pub trait ConfigFallback {
     ///
     /// The CLI alone selects subcommands: config only supplies parameters for the selected branch.
     #[doc(hidden)]
-    fn retain_selected_commands(_config: &mut Self::Config, _opts: &Self::Opts) {}
+    fn retain_commands(_config: &mut Self::Config, _opts: &Self::Opts) {}
 }
 
 /// Parse a clap struct with optional configuration-file fallback.
@@ -164,7 +164,7 @@ where
 
         // The whole file is validated above; only the CLI-selected branch takes part in the merge.
         if let Some(config) = &mut config {
-            Self::retain_selected_commands(config, &opts);
+            Self::retain_commands(config, &opts);
         }
 
         let mut cli = Figment::from(Serialized::defaults(opts));

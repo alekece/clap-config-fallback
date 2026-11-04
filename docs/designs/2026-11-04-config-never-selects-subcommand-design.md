@@ -27,7 +27,7 @@ The root fix is to stop treating the subcommand as something config can select. 
 
 ## Approaches
 
-- **Struct-of-optional-variants config, with config pruned to the CLI-selected branch before the merge (chosen).** `ConfigSubcommand` generates a config struct with one optional field per variant (snake_case name, `deny_unknown_fields` so unknown names error). Before the Figment merge, the config is reduced to only the variant the CLI selected, recursively for nested subcommands; with no CLI selection, all command sections are dropped. The merge itself stays as it is.
+- **Struct-of-optional-variants config, with config pruned to the CLI-selected branch before the merge (chosen).** `ConfigSubcommand` generates a config struct with one optional field per variant (kebab-case name, `deny_unknown_fields` so unknown names error). Before the Figment merge, the config is reduced to only the variant the CLI selected, recursively for nested subcommands; with no CLI selection, all command sections are dropped. The merge itself stays as it is.
 - Extract and re-inject the command around the Figment merge (the approach in PR #2, minus `fallback_command`): works, but adds two public traits and a second merge path.
 - Keep the enum and add an ambiguity check: rejected; it cannot fix the bug, since multiple sections are legitimate under the new model.
 - Write fresh rather than adapting PR #2 (maintainer's choice); credit the reporter in the PR description.
@@ -61,6 +61,7 @@ Running `xxx build server` uses the `build` and `server` values; `xxx run` uses 
 - Optional and required subcommands behave the same: config never promotes a command, and with no CLI command all command sections are dropped. No existing test or example uses an optional subcommand.
 - Unit, newtype and struct variants are all covered by the existing tests and must stay covered.
 - Both crates move to 0.2.0 together, including the derive crate's version pin in the root `Cargo.toml` and `Cargo.lock`. There is no changelog; the README migration section is the release note.
+- Section names are kebab-case, matching the CLI command names (maintainer's choice in PR review). This supersedes the initial snake_case choice: multi-word sections such as `[command.dry_run]` become `[command.dry-run]`, documented in the README migration notes.
 - The pruning mechanism (above) is proposed, not required; any approach meeting the goals is acceptable.
 
 ## Left to the builder

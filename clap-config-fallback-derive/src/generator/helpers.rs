@@ -147,7 +147,7 @@ pub(crate) fn generate_retain_commands_statement(
     let field_ident = field.ident();
     let field_ty = field.ty().unwrap_option();
     let retain_fn = quote! {
-        <#field_ty as ::clap_config_fallback::ConfigFallback>::retain_selected_commands
+        <#field_ty as ::clap_config_fallback::ConfigFallback>::retain_commands
     };
 
     if field.commands().contains(&ClapCommand::Subcommand) {

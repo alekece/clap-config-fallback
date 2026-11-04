@@ -29,6 +29,10 @@ enum Command {
     },
     Empty {},
     Deploy(DeployCommand),
+    DryRun {
+        #[arg(long)]
+        limit: Option<u16>,
+    },
     #[config(skip)]
     Test,
 }
@@ -182,6 +186,33 @@ fn nested_subcommand_uses_selected_branch() -> Result<()> {
         Command::Deploy(DeployCommand { region, command: DeployTarget::Server { port: 9090 } })
             if region == "us-east"
     );
+
+    Ok(())
+}
+
+#[test]
+fn multi_word_command_section_is_kebab_case() -> Result<()> {
+    let file = write_config(&["[command.dry-run]", "limit = 3"])?;
+
+    assert_matches!(
+        parse(&file, &["dry-run"])?.command,
+        Command::DryRun { limit: Some(3) }
+    );
+    assert_matches!(
+        parse(&file, &["dry-run", "--limit", "5"])?.command,
+        Command::DryRun { limit: Some(5) }
+    );
+
+    Ok(())
+}
+
+#[test]
+fn snake_case_command_section_returns_error() -> Result<()> {
+    let file = write_config(&["[command.dry_run]", "limit = 3"])?;
+
+    let error = parse(&file, &["dry-run"]).unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidValue);
 
     Ok(())
 }

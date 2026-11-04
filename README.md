@@ -185,9 +185,10 @@ port = 8080
 logging = true
 ```
 
-Section names are the snake_case variant names. Running `app build server` uses the `build` and
-`server` sections, `app run` uses the `run` section, and `app` alone fails with clap's usual
-missing-subcommand error. Unit variants have no parameters and need no section.
+Section names are the kebab-case command names used on the CLI (`DryRun` is `[command.dry-run]`).
+Running `app build server` uses the `build` and `server` sections, `app run` uses the `run` section,
+and `app` alone fails with clap's usual missing-subcommand error. Unit variants have no parameters
+and need no section.
 
 The whole file is still validated: a section for an unknown or `#[config(skip)]` subcommand, or with
 invalid values, is a configuration error even when another command is selected.
@@ -198,7 +199,8 @@ Config no longer selects the subcommand:
 
 - Remove `command = "serve"` and `command = { debug = { ... } }`; pass the command on the CLI.
 - Remove `#[config(tag = "...")]` and move parameters from `[command]` into `[command.<variant>]`.
-- `[command.<variant>]` sections keep working as before, and several of them may now coexist.
+- `[command.<variant>]` sections keep working, and several of them may now coexist. Multi-word
+  names are now kebab-case like on the CLI: rename `[command.dry_run]` to `[command.dry-run]`.
 
 ## Attribute reference
 
