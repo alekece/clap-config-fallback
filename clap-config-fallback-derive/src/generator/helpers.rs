@@ -5,7 +5,7 @@ use syn::Ident;
 
 use crate::{
     ClapArg, TypeExt,
-    derive::{ConfigPrecedence, NamedField},
+    derive::{ClapCommand, ConfigPrecedence, NamedField},
     generator::GenerationTarget,
     syn_utils::IntoTokenStream,
 };
@@ -126,6 +126,54 @@ pub(crate) fn generate_extend_args_statement(ident: &Ident, field: &NamedField) 
                         #arg_name
                         #arg_formatter
                 }).extend_args(#ident);
+        }
+    }
+}
+
+/// Generates the statement pruning the config section of a command-like field to the branch
+/// selected on the CLI.
+///
+/// `config` is a place holding the field's config struct; `opts` is an expression of type
+/// `&Option<_>` for the field's CLI value.
+pub(crate) fn generate_retain_commands_statement(
+    config: &TokenStream,
+    opts: &TokenStream,
+    field: &NamedField,
+) -> TokenStream {
+    if field.commands().is_empty() || GenerationTarget::Config.should_skip(field) {
+        return TokenStream::new();
+    }
+
+    let field_ident = field.ident();
+    let field_ty = field.ty().unwrap_option();
+    let retain_fn = quote! {
+        <#field_ty as ::clap_config_fallback::ConfigFallback>::retain_selected_commands
+    };
+
+    if field.commands().contains(&ClapCommand::Subcommand) {
+        // no subcommand on the CLI: config must not select one
+        quote! {
+            match (&mut #config.#field_ident, #opts) {
+                (
+                    ::std::option::Option::Some(__clap_field_config),
+                    ::std::option::Option::Some(__clap_field_opts),
+                ) => #retain_fn(__clap_field_config, __clap_field_opts),
+                (__clap_field_config, _) => *__clap_field_config = ::std::option::Option::None,
+            }
+        }
+    } else {
+        // flattened args without CLI values may still hold subcommands to prune
+        quote! {
+            if let ::std::option::Option::Some(__clap_field_config) = &mut #config.#field_ident {
+                match #opts {
+                    ::std::option::Option::Some(__clap_field_opts) => {
+                        #retain_fn(__clap_field_config, __clap_field_opts)
+                    }
+                    ::std::option::Option::None => {
+                        #retain_fn(__clap_field_config, &::std::default::Default::default())
+                    }
+                }
+            }
         }
     }
 }
