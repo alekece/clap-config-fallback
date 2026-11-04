@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.89.0"
 authors = ["Alexis Le Provost <alexis.leprovost@outlook.com>"]
 categories = ["command-line-interface", "config"]
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/alekece/clap-config-fallback"
 
 [package]
@@ -22,7 +22,7 @@ authors.workspace = true
 categories.workspace = true
 license.workspace = true
 repository.workspace = true
-include = ["/src", "/tests", "/examples", "/README.md", "/LICENSE"]
+include = ["/src", "/tests", "/examples", "/README.md", "/LICENSE-MIT", "/LICENSE-APACHE"]
 
 [features]
 default = ["toml", "json", "yaml", "derive"]

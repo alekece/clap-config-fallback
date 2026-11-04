@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/clap-config-fallback.svg)](https://crates.io/crates/clap-config-fallback)
 [![Docs.rs](https://docs.rs/clap-config-fallback/badge.svg)](https://docs.rs/clap-config-fallback)
-[![License](https://img.shields.io/crates/l/clap-config-fallback.svg)](https://choosealicense.com/licenses/)
+[![License](https://img.shields.io/crates/l/clap-config-fallback.svg)](#license)
 
 Add configuration-file fallback to [`clap`](https://crates.io/crates/clap) while keeping clap as the
 final parser, validator, and error reporter.
@@ -347,3 +347,12 @@ Resulting configuration:
 host = "localhost"
 port = 5432
 ```
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT)
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.
