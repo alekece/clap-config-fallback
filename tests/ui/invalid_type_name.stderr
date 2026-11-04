@@ -1,0 +1,5 @@
+error: `not a type` is not a valid type name
+ --> tests/ui/invalid_type_name.rs:5:17
+  |
+5 | #[config(opts = "not a type")]
+  |                 ^^^^^^^^^^^^

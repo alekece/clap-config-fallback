@@ -1,0 +1,11 @@
+error: unsupported casing: `shouting`
+ --> tests/ui/unsupported_rename_all.rs:5:24
+  |
+5 | #[command(rename_all = "shouting")]
+  |                        ^^^^^^^^^^
+
+error: unsupported `rename_all` value
+ --> tests/ui/unsupported_rename_all.rs:5:24
+  |
+5 | #[command(rename_all = "shouting")]
+  |                        ^^^^^^^^^^

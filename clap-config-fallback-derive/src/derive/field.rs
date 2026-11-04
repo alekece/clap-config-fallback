@@ -177,8 +177,10 @@ impl Field {
 
         if !self.aliases().is_empty() && self.flatten() {
             error.push(
-                Error::custom(r#"#[config(alias, aliases)] can only used on non-flatten fields"#)
-                    .with_span(&self.ident),
+                Error::custom(
+                    r#"#[config(alias, aliases)] can only be used on non-flatten fields"#,
+                )
+                .with_span(&self.ident),
             );
         }
 
