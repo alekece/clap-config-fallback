@@ -120,14 +120,23 @@ where
         let command_name = command.get_name().to_owned().into();
         let args = args.into_iter().collect::<Vec<_>>();
 
-        for arg in args.iter().cloned() {
-            // short-circuit to have fully functional help/version output
-            if let Some("--help" | "-h" | "--version" | "-V") = arg.into().as_os_str().to_str() {
+        // Help and version must come from the user's command: it has the doc comments and the
+        // required args that the all-optional `Opts` command lacks.
+        let args = match command.try_get_matches_from(args.clone()) {
+            Ok(args) => args,
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    ErrorKind::DisplayHelp
+                        | ErrorKind::DisplayVersion
+                        | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+                ) =>
+            {
                 return Self::try_parse_from(args);
             }
-        }
+            Err(e) => return Err(e),
+        };
 
-        let args = command.try_get_matches_from(args)?;
         let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
         let mut config: Option<Self::Config> = opts
