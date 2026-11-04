@@ -4,9 +4,11 @@ profile = "dev"
 threads = 32
 names = ["a", "b", "c"]
 
-[command]
-ref = "debug"
+[command.debug]
 verbose = true
+
+[command.run]
+target = "x86_64-unknown-linux-gnu"
 
 [server]
 url = "http://localhost:8080"

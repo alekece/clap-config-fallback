@@ -15,8 +15,6 @@ pub trait EnumLike {
     fn ident(&self) -> &Ident;
     /// Variant of the enum.
     fn variants(&self) -> &[Variant];
-    /// Tag to use for internally tagged enums.
-    fn tag(&self) -> Option<&str>;
 }
 
 /// Generatates `Opts` and `Config` helper enums and impls for derive inputs.

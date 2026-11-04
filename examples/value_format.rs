@@ -7,7 +7,7 @@ use clap_config_fallback::{ConfigArgs, ConfigParser, ConfigSubcommand};
 struct Cli {
     #[command(flatten)]
     database: DatabaseCli,
-    #[arg(long, default_value = "examples/config.toml")]
+    #[arg(long, default_value = "examples/config.json")]
     #[config(path)]
     config_path: String,
     #[command(subcommand)]
@@ -23,7 +23,6 @@ struct DatabaseCli {
 }
 
 #[derive(Debug, Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Test {
         #[arg(long, value_parser = humantime::parse_duration)]
