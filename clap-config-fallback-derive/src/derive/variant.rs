@@ -2,11 +2,11 @@ use darling::{
     Error, FromVariant,
     ast::{Fields, Style},
 };
-use syn::{Ident, Type};
+use syn::{Attribute, Ident, Type};
 
 use crate::{
     TypeExt,
-    derive::{Field, NamedField, Skippable},
+    derive::{ClapCommandAttr, Field, NamedField, RenameRule, Skippable},
 };
 
 /// Normalized variant shape.
@@ -21,12 +21,16 @@ pub enum VariantShape {
 
 /// Parsed enum variant metadata.
 #[derive(FromVariant)]
-#[darling(attributes(config),  and_then = Self::autocorrect)]
+#[darling(attributes(config), forward_attrs(command), and_then = Self::autocorrect)]
 pub struct Variant {
     ident: Ident,
+    /// Forwarded `#[command(...)]` attributes of the variant.
+    attrs: Vec<Attribute>,
     fields: Fields<Field>,
     #[darling(default)]
     pub(crate) skip: bool,
+    #[darling(skip)]
+    command: ClapCommandAttr,
 }
 
 impl Skippable for Variant {
@@ -39,6 +43,25 @@ impl Variant {
     /// Variant identifier.
     pub fn ident(&self) -> &Ident {
         &self.ident
+    }
+
+    /// Returns forwarded `#[command(...)]` attributes.
+    pub fn attributes(&self) -> &[Attribute] {
+        &self.attrs
+    }
+
+    /// Returns the subcommand name clap uses: the explicit `name`, otherwise the identifier cased
+    /// by the variant's own `rename_all`, falling back to the enum's.
+    pub fn command_name(&self, enum_rule: RenameRule) -> String {
+        self.command.name().map_or_else(
+            || self.rename_rule(enum_rule).apply(&self.ident.to_string()),
+            str::to_owned,
+        )
+    }
+
+    /// Returns the casing of the variant's fields: its own `rename_all`, otherwise the enum's.
+    pub fn rename_rule(&self, enum_rule: RenameRule) -> RenameRule {
+        self.command.rename_all().unwrap_or(enum_rule)
     }
 
     /// Returns the normalized variant shape.
@@ -84,6 +107,10 @@ impl Variant {
     /// or struct variants with unnamed fields.
     fn autocorrect(mut self) -> Result<Self, Error> {
         let mut error = Error::accumulator();
+
+        if let Some(command) = error.handle(ClapCommandAttr::from_attrs(&self.attrs)) {
+            self.command = command;
+        }
 
         if let Some(ty) = self.as_newtype()
             && ty.is_unit()

@@ -1,7 +1,10 @@
 use darling::{Error, FromDeriveInput, ast::Data, util::Ignored};
-use syn::Ident;
+use syn::{Attribute, Ident};
 
-use crate::{derive::Variant, generator::EnumLike};
+use crate::{
+    derive::{ClapCommandAttr, RenameRule, Variant},
+    generator::EnumLike,
+};
 
 /// Parser for the `ConfigSubcommand` derive macro.
 ///
@@ -23,15 +26,24 @@ use crate::{derive::Variant, generator::EnumLike};
 /// When enabled, all variants will be marked as skipped during configuration
 /// generation, effectively disabling config parsing for this enum.
 #[derive(FromDeriveInput)]
-#[darling(attributes(config), supports(enum_any), and_then = Self::autocorrect)]
+#[darling(
+    attributes(config),
+    forward_attrs(command),
+    supports(enum_any),
+    and_then = Self::autocorrect
+)]
 pub struct ConfigSubcommand {
     /// The identifier of the enum on which the derive macro is applied.
     ident: Ident,
+    /// Forwarded `#[command(...)]` attributes of the enum.
+    attrs: Vec<Attribute>,
     /// The data of the enum, containing its variants and their attributes.
     data: Data<Variant, Ignored>,
     /// If `true`, all variants will be marked as skipped during generation.
     #[darling(default)]
     skip_all: bool,
+    #[darling(skip)]
+    command: ClapCommandAttr,
 }
 
 impl EnumLike for ConfigSubcommand {
@@ -45,13 +57,24 @@ impl EnumLike for ConfigSubcommand {
             Data::Struct(_) => unreachable!(),
         }
     }
+
+    fn attributes(&self) -> &[Attribute] {
+        &self.attrs
+    }
+
+    fn rename_rule(&self) -> RenameRule {
+        self.command.rename_all().unwrap_or_default()
+    }
 }
 
 impl ConfigSubcommand {
     /// Applies post-processing the the parsed enum.
     ///
-    /// If `skip_all` is enabled, this will mark all variants as skipped.
+    /// Parses the naming items of `#[command(...)]`. If `skip_all` is enabled, this will mark all
+    /// variants as skipped.
     pub fn autocorrect(mut self) -> Result<Self, Error> {
+        self.command = ClapCommandAttr::from_attrs(&self.attrs)?;
+
         match &mut self.data {
             Data::Enum(variants) => variants
                 .iter_mut()

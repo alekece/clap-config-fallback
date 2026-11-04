@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{Attribute, Ident};
 
 use crate::{
     ConfigArgs,
-    derive::{ConfigFormat, ConfigParser, NamedField},
+    derive::{ClapCommandAttr, ConfigFormat, ConfigParser, NamedField, RenameRule},
     generator::{GenerationTarget, helpers},
     syn_utils::IntoTokenStream,
 };
@@ -15,6 +15,10 @@ pub trait StructLike {
     fn ident(&self) -> &Ident;
     /// Fields of the struct.
     fn fields(&self) -> &[NamedField];
+    /// Forwarded `#[command(...)]` attributes of the struct.
+    fn attributes(&self) -> &[Attribute];
+    /// Casing clap applies to the struct's flags.
+    fn rename_rule(&self) -> RenameRule;
 }
 
 /// Generatates `Opts` and `Config` helper structs and impls for derive inputs.
@@ -123,11 +127,22 @@ impl<T: StructLike> StructGenerator<T> {
             .iter()
             .filter(|field| !target.should_skip(*field))
             .map(|field| helpers::generate_field_definition(&ident, field, None, target));
+        let command_attrs = match target {
+            GenerationTarget::Opts => self
+                .input
+                .attributes()
+                .iter()
+                .map(ClapCommandAttr::sanitize)
+                .into_token_stream(),
+            GenerationTarget::Config => TokenStream::new(),
+        };
 
         (
             ident.clone(),
             quote! {
-                #[derive(Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
+                #[derive(Debug, Default, ::clap_config_fallback::reexports::serde::Serialize, ::clap_config_fallback::reexports::serde::Deserialize)]
+                #[serde(crate = "::clap_config_fallback::reexports::serde")]
+                #command_attrs
                 pub struct #ident {
                     #(#fields),*
                 }
@@ -176,10 +191,10 @@ impl<T: StructLike> StructGenerator<T> {
         let ident = format_ident!("__clap_arg");
         let commands_ident = format_ident!("__clap_commands");
         let field_idents = self.input.fields().iter().map(|field| field.ident());
-        let field_args =
-            self.input.fields().iter().map(|field| {
-                helpers::generate_extend_args_statement(&ident, &commands_ident, field)
-            });
+        let rule = self.input.rename_rule();
+        let field_args = self.input.fields().iter().map(|field| {
+            helpers::generate_extend_args_statement(&ident, &commands_ident, field, rule)
+        });
 
         quote! {
             fn extend_args(self, #ident: &mut ::std::vec::Vec<::std::ffi::OsString>) {
