@@ -1,11 +1,11 @@
-use heck::ToSnakeCase;
+use heck::{ToKebabCase, ToSnakeCase};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::Ident;
+use syn::{Ident, ext::IdentExt};
 
 use crate::{
     ClapArg, TypeExt,
-    derive::{ConfigPrecedence, NamedField},
+    derive::{ClapCommand, ConfigPrecedence, NamedField},
     generator::GenerationTarget,
     syn_utils::IntoTokenStream,
 };
@@ -26,6 +26,15 @@ pub(crate) fn generate_field_definition(
             GenerationTarget::Opts => field.attributes().iter().into_token_stream(),
             GenerationTarget::Config => generate_serde_alias_attrs(field),
         };
+
+        if field.flatten() && matches!(target, GenerationTarget::Config) {
+            // serde turns any error inside a flattened `Option` into `None`, which would silently
+            // drop invalid config instead of reporting it
+            return quote! {
+                #[serde(flatten, default)]
+                #field_ident: <#field_ty as ::clap_config_fallback::ConfigFallback>::#target_ident
+            };
+        }
 
         return quote! {
             #field_attrs
@@ -130,6 +139,65 @@ pub(crate) fn generate_extend_args_statement(ident: &Ident, field: &NamedField) 
     }
 }
 
+/// Generates the statement pruning the config section of a command-like field to the branch
+/// selected on the CLI.
+///
+/// `config` is a place holding the field's config struct; `opts` is an expression of type
+/// `&Option<_>` for the field's CLI value.
+pub(crate) fn generate_retain_commands_statement(
+    config: &TokenStream,
+    opts: &TokenStream,
+    field: &NamedField,
+) -> TokenStream {
+    if field.commands().is_empty() || GenerationTarget::Config.should_skip(field) {
+        return TokenStream::new();
+    }
+
+    let field_ident = field.ident();
+    let field_ty = field.ty().unwrap_option();
+    let retain_fn = quote! {
+        <#field_ty as ::clap_config_fallback::ConfigFallback>::retain_commands
+    };
+
+    if field.commands().contains(&ClapCommand::Subcommand) {
+        // no subcommand on the CLI: config must not select one
+        quote! {
+            match (&mut #config.#field_ident, #opts) {
+                (
+                    ::std::option::Option::Some(__clap_field_config),
+                    ::std::option::Option::Some(__clap_field_opts),
+                ) => #retain_fn(__clap_field_config, __clap_field_opts),
+                (__clap_field_config, _) => *__clap_field_config = ::std::option::Option::None,
+            }
+        }
+    } else if field.flatten() {
+        // flattened args without CLI values may still hold subcommands to prune
+        quote! {
+            match #opts {
+                ::std::option::Option::Some(__clap_field_opts) => {
+                    #retain_fn(&mut #config.#field_ident, __clap_field_opts)
+                }
+                ::std::option::Option::None => {
+                    #retain_fn(&mut #config.#field_ident, &::std::default::Default::default())
+                }
+            }
+        }
+    } else {
+        quote! {
+            if let ::std::option::Option::Some(__clap_field_config) = &mut #config.#field_ident {
+                match #opts {
+                    ::std::option::Option::Some(__clap_field_opts) => {
+                        #retain_fn(__clap_field_config, __clap_field_opts)
+                    }
+                    ::std::option::Option::None => {
+                        #retain_fn(__clap_field_config, &::std::default::Default::default())
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn generate_deserialize_fn(
     field: &NamedField,
     field_prefix: Option<&Ident>,
@@ -207,22 +275,36 @@ pub(crate) fn generate_deserialize_with_attr(
 }
 
 pub(crate) fn generate_serde_alias_attrs(field: &NamedField) -> TokenStream {
-    if !field.commands().is_empty() {
+    let mut aliases: Vec<String> = if !field.commands().is_empty() {
         // `clap` does not support aliases for command-like, so we forward any
         // `#[config(alias, aliases)]` directly
         field
             .aliases()
             .into_iter()
-            .map(|alias| quote! { #[serde(alias = #alias)] })
-            .into_token_stream()
+            .map(|alias| alias.value())
+            .collect()
     } else {
         field
             .args()
             .iter()
             .flat_map(ClapArg::aliases)
-            .map(|alias| quote! { #[serde(alias = #alias)] })
-            .into_token_stream()
+            .map(|alias| alias.value())
+            .collect()
+    };
+
+    // Config files may spell multi-word keys in kebab-case; the canonical key stays the field name
+    // so the config merges with the generated `Opts`.
+    let field_name = field.ident().unraw().to_string();
+    let kebab_name = field_name.to_kebab_case();
+
+    if !field.flatten() && kebab_name != field_name && !aliases.contains(&kebab_name) {
+        aliases.push(kebab_name);
     }
+
+    aliases
+        .iter()
+        .map(|alias| quote! { #[serde(alias = #alias)] })
+        .into_token_stream()
 }
 
 pub(crate) fn generate_sanitized_clap_attrs(field: &NamedField) -> TokenStream {

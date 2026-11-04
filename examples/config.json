@@ -4,7 +4,9 @@
   "profile": "prod",
   "threads": 10,
   "command": {
-    "ref": "test"
+    "test": {
+      "duration": "5s"
+    }
   },
   "server": {
     "url": "http://localhost:8080",

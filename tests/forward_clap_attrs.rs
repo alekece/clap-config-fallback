@@ -98,3 +98,47 @@ fn forwards_aliases_to_config() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn accepts_kebab_case_keys() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, "threads = 5")?;
+    writeln!(file, "log-level = 'warn'")?;
+    writeln!(file, "timeout-ms = 2000")?;
+
+    let cli =
+        Cli::try_parse_with_config_from(["bin", "--config-path", file.path().to_str().unwrap()])?;
+
+    assert_eq!(cli.log_level, "warn");
+    assert_eq!(cli.timeout_ms, Some(2000));
+
+    let cli = Cli::try_parse_with_config_from([
+        "bin",
+        "--timeout-ms",
+        "1500",
+        "--config-path",
+        file.path().to_str().unwrap(),
+    ])?;
+
+    assert_eq!(cli.timeout_ms, Some(1500));
+
+    Ok(())
+}
+
+#[test]
+fn both_key_spellings_returns_error() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, "threads = 5")?;
+    writeln!(file, "timeout_ms = 1000")?;
+    writeln!(file, "timeout-ms = 2000")?;
+
+    let error =
+        Cli::try_parse_with_config_from(["bin", "--config-path", file.path().to_str().unwrap()])
+            .unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidValue);
+
+    Ok(())
+}

@@ -11,32 +11,12 @@ use crate::{derive::Variant, generator::EnumLike};
 /// It is responsible for:
 /// - capturing the enum identifier,
 /// - collecting its variants,
-/// - handling configuration-related attributes such as `tag`,
 /// - propagating global flags like `skip_all` to each variant.
 ///
+/// The CLI alone selects the subcommand: the configuration holds one optional section per
+/// variant and only the selected one is used.
+///
 /// # Attributes
-///
-/// ## `#[config(tag = "...")]`
-///
-/// Defines the name of the field used in the configuration file to identify
-/// which subcommand variant should be selected.
-///
-/// For example:
-///
-/// ```toml
-/// [command]
-/// ref = "debug"
-/// ```
-///
-/// with:
-///
-/// ```rust,ignore
-/// #[derive(clap::Subcommand, clap_config_fallback::ConfigSubcommand)]
-/// #[config(tag = "ref")]
-/// enum Command {
-///     Debug,
-/// }
-/// ```
 ///
 /// ## `#[config(skip_all)]`
 ///
@@ -52,12 +32,6 @@ pub struct ConfigSubcommand {
     /// If `true`, all variants will be marked as skipped during generation.
     #[darling(default)]
     skip_all: bool,
-    /// Name of the configuration field used to discriminate enum variants.
-    ///
-    /// This corresponds to the **tag** in an internally tagged enum representation.
-    /// It must be explicitly provided via `#[config(tag = "...")]`.
-    #[darling(default)]
-    tag: Option<String>,
 }
 
 impl EnumLike for ConfigSubcommand {
@@ -70,10 +44,6 @@ impl EnumLike for ConfigSubcommand {
             Data::Enum(variants) => variants,
             Data::Struct(_) => unreachable!(),
         }
-    }
-
-    fn tag(&self) -> Option<&str> {
-        self.tag.as_deref()
     }
 }
 

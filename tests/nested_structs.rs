@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use clap::{Args, Parser};
+use clap::{Args, Parser, error::ErrorKind};
 use clap_config_fallback::{ConfigArgs, ConfigParser};
 use eyre::Result;
 use tempfile::NamedTempFile;
@@ -73,6 +73,46 @@ fn nested_cli_values_override_nested_config() -> Result<()> {
     assert_eq!(cli.profile, "dev");
     assert_eq!(cli.logging.level, "error");
     assert_eq!(cli.logging.interval_secs, 10);
+
+    Ok(())
+}
+
+#[test]
+fn nested_kebab_case_keys_can_be_loaded_from_config() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, r#"profile = "prod""#)?;
+    writeln!(file, r#"level = "warn""#)?;
+    writeln!(file, "interval-secs = 30")?;
+
+    let cli = Cli::try_parse_with_config_from([
+        "bin",
+        "--config-path",
+        &file.path().display().to_string(),
+    ])?;
+
+    assert_eq!(cli.logging.interval_secs, 30);
+
+    Ok(())
+}
+
+#[test]
+fn nested_both_key_spellings_returns_error() -> Result<()> {
+    let mut file = NamedTempFile::new()?;
+
+    writeln!(file, r#"profile = "prod""#)?;
+    writeln!(file, r#"level = "warn""#)?;
+    writeln!(file, "interval_secs = 30")?;
+    writeln!(file, "interval-secs = 40")?;
+
+    let error = Cli::try_parse_with_config_from([
+        "bin",
+        "--config-path",
+        &file.path().display().to_string(),
+    ])
+    .unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidValue);
 
     Ok(())
 }

@@ -32,6 +32,7 @@ impl StructGenerator<ConfigParser> {
         let deserialize_fns = self.generate_deserialize_fns();
         let config_path_fn = self.generate_config_path_fn();
         let config_format_fn = self.generate_config_format_fn();
+        let retain_commands_fn = self.generate_retain_commands_fn();
 
         quote! {
             #config
@@ -59,6 +60,8 @@ impl StructGenerator<ConfigParser> {
             impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
+
+                #retain_commands_fn
             }
 
             impl ::clap_config_fallback::ConfigParser for #ident {
@@ -76,6 +79,7 @@ impl StructGenerator<ConfigArgs> {
         let extend_args_fn = self.generate_extend_args_fn();
         let from_args_fn = self.generate_from_args_fn();
         let deserialize_fns = self.generate_deserialize_fns();
+        let retain_commands_fn = self.generate_retain_commands_fn();
 
         quote! {
             #config
@@ -98,6 +102,8 @@ impl StructGenerator<ConfigArgs> {
             impl ::clap_config_fallback::ConfigFallback for #ident {
                 type Opts = #opts_ident;
                 type Config = #config_ident;
+
+                #retain_commands_fn
             }
         }
     }
@@ -222,6 +228,27 @@ impl<T: StructLike> StructGenerator<T> {
                 ::std::option::Option::Some(::clap_config_fallback::ConfigFormat::#config_format)
             }
         })
+    }
+
+    fn generate_retain_commands_fn(&self) -> TokenStream {
+        let config = format_ident!("__clap_config");
+        let opts = format_ident!("__clap_opts");
+        let statements = self.input.fields().iter().map(|field| {
+            let field_ident = field.ident();
+
+            helpers::generate_retain_commands_statement(
+                &quote! { #config },
+                &quote! { &#opts.#field_ident },
+                field,
+            )
+        });
+
+        quote! {
+            #[allow(unused_variables)]
+            fn retain_commands(#config: &mut Self::Config, #opts: &Self::Opts) {
+                #(#statements)*
+            }
+        }
     }
 
     fn generate_deserialize_fns(&self) -> TokenStream {

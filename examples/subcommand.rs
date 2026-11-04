@@ -15,7 +15,6 @@ struct Cli {
 }
 
 #[derive(Debug, Subcommand, ConfigSubcommand)]
-#[config(tag = "ref")]
 enum Command {
     Test,
     Run(RunCommand),

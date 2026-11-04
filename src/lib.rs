@@ -64,6 +64,12 @@ pub trait ConfigFallback {
     type Opts: Serialize + DeserializeOwned + IntoArgs + FromArgs;
     /// Config-only representation loaded from file.
     type Config: Serialize + DeserializeOwned;
+
+    /// Drops config sections of subcommands that were not selected on the CLI.
+    ///
+    /// The CLI alone selects subcommands: config only supplies parameters for the selected branch.
+    #[doc(hidden)]
+    fn retain_commands(_config: &mut Self::Config, _opts: &Self::Opts) {}
 }
 
 /// Parse a clap struct with optional configuration-file fallback.
@@ -116,7 +122,7 @@ where
         let args = command.try_get_matches_from(args)?;
         let opts = Self::Opts::from_args(&args).unwrap_or_default();
 
-        let config: Option<Self::Config> = opts
+        let mut config: Option<Self::Config> = opts
             .config_path()
             .map(|path| {
                 let path = PathBuf::from(path);
@@ -155,6 +161,11 @@ where
                 })
             })
             .transpose()?;
+
+        // The whole file is validated above; only the CLI-selected branch takes part in the merge.
+        if let Some(config) = &mut config {
+            Self::retain_commands(config, &opts);
+        }
 
         let mut cli = Figment::from(Serialized::defaults(opts));
 
