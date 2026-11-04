@@ -23,6 +23,8 @@ pub struct ClapArg {
     /// Optional override for the clap argument id.
     /// Only supports string literals.
     id: Option<Result<LitStr, Error>>,
+    /// Deprecated clap spelling of `id`, still honored by clap.
+    name: Option<Result<LitStr, Error>>,
     /// Optional override for the short flag (e.g., `-d`).
     short: Option<Override<char>>,
     /// Optional override for the long flag (e.g., `--debug`).
@@ -52,6 +54,7 @@ impl Default for ClapArg {
     fn default() -> Self {
         Self {
             id: None,
+            name: None,
             short: None,
             long: None,
             alias: None,
@@ -71,9 +74,10 @@ impl ClapArg {
         let mut arg = Self::from_meta(&attr.meta).ok()?;
         let names = parse_arg_names(attr);
         let position = |wanted: &str| names.iter().position(|name| name == wanted);
+        let id_position = position("id").or_else(|| position("name"));
         let id_before = |flag: &str| {
             matches!(
-                (position("id"), position(flag)),
+                (id_position, position(flag)),
                 (Some(id), Some(flag)) if id < flag
             )
         };
@@ -96,7 +100,11 @@ impl ClapArg {
 
     /// Returns the explicit clap argument id if available.
     pub fn id(&self) -> Option<String> {
-        self.id.clone()?.ok().map(|id| id.value())
+        self.id
+            .clone()
+            .or_else(|| self.name.clone())?
+            .ok()
+            .map(|id| id.value())
     }
 
     /// Returns the parsed `value_parser` expression path if available.

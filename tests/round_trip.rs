@@ -33,6 +33,8 @@ struct IdCli {
     short_from_id: Option<String>,
     #[arg(long, id = "between", short)]
     mixed: Option<String>,
+    #[arg(name = "legacy", long)]
+    named: Option<String>,
     #[arg(long)]
     #[config(path, format = "toml")]
     config_path: Option<String>,
@@ -140,6 +142,8 @@ fn reads_raw_and_custom_ids_from_cli() -> Result<()> {
         "e",
         "--mixed",
         "f",
+        "--legacy",
+        "g",
     ])?;
 
     assert_eq!(cli.r#type.as_deref(), Some("a"));
@@ -148,6 +152,7 @@ fn reads_raw_and_custom_ids_from_cli() -> Result<()> {
     assert_eq!(cli.long_from_id.as_deref(), Some("d"));
     assert_eq!(cli.short_from_id.as_deref(), Some("e"));
     assert_eq!(cli.mixed.as_deref(), Some("f"));
+    assert_eq!(cli.named.as_deref(), Some("g"));
 
     Ok(())
 }
@@ -161,6 +166,7 @@ fn reads_raw_and_custom_ids_from_config() -> Result<()> {
         r#"long_from_id = "d""#,
         r#"short_from_id = "e""#,
         r#"mixed = "f""#,
+        r#"named = "g""#,
     ])?;
     let path = file.path().display().to_string();
 
@@ -172,6 +178,7 @@ fn reads_raw_and_custom_ids_from_config() -> Result<()> {
     assert_eq!(cli.long_from_id.as_deref(), Some("d"));
     assert_eq!(cli.short_from_id.as_deref(), Some("e"));
     assert_eq!(cli.mixed.as_deref(), Some("f"));
+    assert_eq!(cli.named.as_deref(), Some("g"));
 
     Ok(())
 }
