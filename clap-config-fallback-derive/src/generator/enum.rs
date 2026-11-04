@@ -17,6 +17,8 @@ pub trait EnumLike {
     fn variants(&self) -> &[Variant];
     /// Forwarded `#[command(...)]` attributes of the enum.
     fn attributes(&self) -> &[Attribute];
+    /// Name of the generated type for `target`.
+    fn generated_ident(&self, target: GenerationTarget) -> Ident;
     /// Casing clap applies to the variant names.
     fn rename_rule(&self) -> RenameRule;
 }
@@ -72,7 +74,7 @@ impl<T: EnumLike> EnumGenerator<T> {
 
     fn generate_opts_enum(&self) -> (Ident, TokenStream) {
         let target = GenerationTarget::Opts;
-        let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
+        let ident = self.input.generated_ident(target);
         let rule = self.input.rename_rule();
         let variants = self.input.variants().iter().map(|variant| {
             let variant_ident = variant.ident();
@@ -134,7 +136,7 @@ impl<T: EnumLike> EnumGenerator<T> {
     /// parameters for every subcommand at once without selecting any of them.
     fn generate_config_struct(&self) -> (Ident, TokenStream) {
         let target = GenerationTarget::Config;
-        let ident = format_ident!("{}{}", self.input.ident(), target.suffix());
+        let ident = self.input.generated_ident(target);
         let rule = self.input.rename_rule();
         let (section_structs, sections): (Vec<_>, Vec<_>) = self
             .input

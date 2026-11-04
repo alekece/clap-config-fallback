@@ -4,7 +4,7 @@ use syn::{Attribute, Ident};
 
 use crate::{
     derive::{ConfigParser, NamedField, RenameRule},
-    generator::StructLike,
+    generator::{GenerationTarget, StructLike},
 };
 
 /// Wrapper aound [`ConfigParser`] for `Args`-specific parsing and code generation.
@@ -32,5 +32,9 @@ impl StructLike for ConfigArgs {
 
     fn rename_rule(&self) -> RenameRule {
         self.0.rename_rule()
+    }
+
+    fn generated_ident(&self, target: GenerationTarget) -> Ident {
+        self.0.generated_ident(target)
     }
 }

@@ -6,8 +6,8 @@ use darling::{
 use syn::{Attribute, Ident};
 
 use crate::{
-    derive::{ClapCommandAttr, ConfigPrecedence, NamedField, RenameRule},
-    generator::StructLike,
+    derive::{ClapCommandAttr, ConfigPrecedence, NamedField, RenameRule, TypeNames},
+    generator::{GenerationTarget, StructLike},
 };
 
 /// Parser for the `ConfigParser` derive macro, extracting struct and field information along with
@@ -31,6 +31,8 @@ pub struct ConfigParser {
     skip_all: bool,
     #[darling(default)]
     precedence: Option<ConfigPrecedence>,
+    #[darling(flatten)]
+    names: TypeNames,
     #[darling(skip)]
     command: ClapCommandAttr,
 }
@@ -53,6 +55,10 @@ impl StructLike for ConfigParser {
 
     fn rename_rule(&self) -> RenameRule {
         self.command.rename_all().unwrap_or_default()
+    }
+
+    fn generated_ident(&self, target: GenerationTarget) -> Ident {
+        self.names.ident(&self.ident, target)
     }
 }
 
