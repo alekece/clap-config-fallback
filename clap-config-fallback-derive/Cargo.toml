@@ -18,7 +18,7 @@ proc-macro = true
 syn = { version = "2", features = ["full", "extra-traits"] }
 proc-macro2 = { version = "1", features = ["proc-macro"] }
 quote = "1"
-darling = "0.21"
+darling = "0.24"
 heck = "0.5.0"
 strum = { version = "0.28.0", features = ["derive"] }
 derive_more = { version = "2.1.1", features = ["deref", "deref_mut"] }
