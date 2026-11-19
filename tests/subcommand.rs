@@ -6,6 +6,30 @@ use clap_config_fallback::{ConfigArgs, ConfigParser, ConfigSubcommand};
 use eyre::Result;
 use tempfile::NamedTempFile;
 
+struct DurationFormat;
+
+impl DurationFormat {
+    fn parse(value: &str) -> Result<Duration, String> {
+        if let Some(seconds) = value.strip_suffix('s') {
+            seconds
+                .parse()
+                .map(Duration::from_secs)
+                .map_err(|error| error.to_string())
+        } else if let Some(minutes) = value.strip_suffix("min") {
+            minutes
+                .parse::<u64>()
+                .map(|minutes| Duration::from_secs(minutes * 60))
+                .map_err(|error| error.to_string())
+        } else {
+            Err("duration must end in s or min".to_owned())
+        }
+    }
+
+    fn format(duration: Duration) -> String {
+        format!("{}s", duration.as_secs())
+    }
+}
+
 #[derive(Debug, Parser, ConfigParser)]
 struct Cli {
     #[arg(short, long)]
@@ -23,8 +47,8 @@ enum Command {
     Debug {
         #[arg(long)]
         verbose: bool,
-        #[arg(short, long, value_parser = humantime::parse_duration)]
-        #[config(value_format = humantime::format_duration)]
+        #[arg(short, long, value_parser = DurationFormat::parse)]
+        #[config(value_format = DurationFormat::format)]
         timeout: Option<Duration>,
     },
     Empty {},

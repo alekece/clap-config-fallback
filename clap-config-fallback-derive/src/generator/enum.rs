@@ -89,6 +89,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                 VariantShape::Unit => quote! { #variant_ident },
                 VariantShape::Newtype(ty) => {
                     let target_ident = target.suffix_ident();
+                    let ty = ty.as_ref();
 
                     quote! { #variant_ident(<#ty as ::clap_config_fallback::ConfigFallback>::#target_ident) }
                 }
@@ -166,10 +167,14 @@ impl<T: EnumLike> EnumGenerator<T> {
                         section_struct(TokenStream::new()),
                         quote! { #section_ident },
                     ),
-                    VariantShape::Newtype(ty) => (
-                        TokenStream::new(),
-                        quote! { <#ty as ::clap_config_fallback::ConfigFallback>::Config },
-                    ),
+                    VariantShape::Newtype(ty) => {
+                        let ty = ty.as_ref();
+
+                        (
+                            TokenStream::new(),
+                            quote! { <#ty as ::clap_config_fallback::ConfigFallback>::Config },
+                        )
+                    }
                     VariantShape::Struct(fields) => {
                         let fields = fields
                             .iter()
@@ -241,17 +246,21 @@ impl<T: EnumLike> EnumGenerator<T> {
             match variant.shape() {
                 // unit variants have no parameters to merge
                 VariantShape::Unit => quote! { #opts_ident::#variant_ident => {} },
-                VariantShape::Newtype(ty) => quote! {
-                    #opts_ident::#variant_ident(__clap_opts) => {
-                        if let ::std::option::Option::Some(mut #section) = #sections.#variant_ident {
-                            <#ty as ::clap_config_fallback::ConfigFallback>::retain_commands(
-                                &mut #section,
-                                __clap_opts,
-                            );
-                            #config.#variant_ident = ::std::option::Option::Some(#section);
+                VariantShape::Newtype(ty) => {
+                    let ty = ty.as_ref();
+
+                    quote! {
+                        #opts_ident::#variant_ident(__clap_opts) => {
+                            if let ::std::option::Option::Some(mut #section) = #sections.#variant_ident {
+                                <#ty as ::clap_config_fallback::ConfigFallback>::retain_commands(
+                                    &mut #section,
+                                    __clap_opts,
+                                );
+                                #config.#variant_ident = ::std::option::Option::Some(#section);
+                            }
                         }
                     }
-                },
+                }
                 VariantShape::Struct(fields) => {
                     let command_fields = fields
                         .iter()
@@ -375,6 +384,7 @@ impl<T: EnumLike> EnumGenerator<T> {
                 },
                 VariantShape::Newtype(ty) => {
                     let target_ident = GenerationTarget::Opts.suffix_ident();
+                    let ty = ty.as_ref();
 
                     // the variant was selected on the CLI even when all its values come from config
                     quote! {
