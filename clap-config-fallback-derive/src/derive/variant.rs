@@ -84,8 +84,7 @@ impl Variant {
 
     /// Returns the inner field type for newtype variants.
     pub fn as_newtype(&self) -> Option<Type> {
-        self.fields
-            .is_newtype()
+        (self.fields.is_tuple() && self.fields.len() == 1)
             .then(|| self.fields.fields.first().unwrap().ty().clone())
     }
 
